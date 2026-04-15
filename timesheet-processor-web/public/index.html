@@ -382,8 +382,117 @@
             animation: spin 0.8s linear infinite;
         }
 
-        @keyframes spin {
-            to { transform: rotate(360deg); }
+        .main-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 12px;
+        }
+
+        .main-tab {
+            padding: 12px 24px;
+            border: none;
+            background: none;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .main-tab.active {
+            color: #00d084;
+            border-bottom-color: #00d084;
+        }
+
+        .main-tab-content {
+            display: none;
+        }
+
+        .main-tab-content.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #94a3b8;
+            margin-bottom: 6px;
+        }
+
+        .form-input, .form-select {
+            width: 100%;
+            padding: 8px 12px;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 4px;
+            color: #e2e8f0;
+            font-size: 14px;
+        }
+
+        .form-input:focus, .form-select:focus {
+            outline: none;
+            border-color: #00d084;
+        }
+
+        .task-item {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+
+        .task-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #00d084;
+            margin-bottom: 8px;
+        }
+
+        .task-config {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .json-output {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            padding: 16px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 12px;
+            color: #e2e8f0;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .copy-btn {
+            background: #00d084;
+            color: #0f172a;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 12px;
+            transition: background-color 0.3s;
+        }
+
+        .copy-btn:hover {
+            background: #00b875;
         }
     </style>
 </head>
@@ -415,31 +524,128 @@
 
             <!-- Results Section -->
             <div id="results" style="display: none;">
-                <!-- Summary -->
-                <div class="card">
-                    <div class="card-title">Resumo Geral</div>
-                    <div class="summary-grid">
-                        <div class="summary-box">
-                            <div class="summary-label">Total de Horas</div>
-                            <div class="summary-value" id="totalHours">0h</div>
+                <!-- Main Tabs -->
+                <div class="main-tabs">
+                    <button class="main-tab active" onclick="switchMainTab('report')">📊 Relatório</button>
+                    <button class="main-tab" onclick="switchMainTab('tasks')">📋 Criar Tarefas</button>
+                </div>
+
+                <!-- Report Tab -->
+                <div class="main-tab-content active" id="reportTab">
+                    <!-- Summary -->
+                    <div class="card">
+                        <div class="card-title">Resumo Geral</div>
+                        <div class="summary-grid">
+                            <div class="summary-box">
+                                <div class="summary-label">Total de Horas</div>
+                                <div class="summary-value" id="totalHours">0h</div>
+                            </div>
+                            <div class="summary-box orange">
+                                <div class="summary-label">Dias Registrados</div>
+                                <div class="summary-value" id="daysCount">0</div>
+                            </div>
                         </div>
-                        <div class="summary-box orange">
-                            <div class="summary-label">Dias Registrados</div>
-                            <div class="summary-value" id="daysCount">0</div>
-                        </div>
+                    </div>
+
+                    <!-- Tabs -->
+                    <div class="card" style="margin-top: 24px;">
+                        <div class="tabs" id="tabs"></div>
+                        <div id="tabsContent"></div>
+                    </div>
+
+                    <!-- All Days -->
+                    <div class="card" style="margin-top: 24px;">
+                        <div class="card-title">Todos os Dias</div>
+                        <div class="days-list" id="daysList"></div>
                     </div>
                 </div>
 
-                <!-- Tabs -->
-                <div class="card" style="margin-top: 24px;">
-                    <div class="tabs" id="tabs"></div>
-                    <div id="tabsContent"></div>
+                <!-- Tasks Tab -->
+                <div class="main-tab-content" id="tasksTab">
+                    <!-- Configuration -->
+                    <div class="card">
+                        <div class="card-title">Configuração das Tarefas</div>
+                        <div class="card-description">Configure os campos para gerar as tarefas no Redmine</div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 16px;">
+                            <div class="form-group">
+                                <label class="form-label">Data Inicial</label>
+                                <input type="date" class="form-input" id="startDate" value="2026-04-01">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Data Final</label>
+                                <input type="date" class="form-input" id="dueDate" value="2026-04-15">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Tracker Padrão</label>
+                                <select class="form-select" id="defaultTracker">
+                                    <option value="5">Desenvolvimento</option>
+                                    <option value="21">Reuniões</option>
+                                    <option value="12">Análise e Refinamento</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button onclick="generateTasks()" style="background: #00d084; color: #0f172a; border: none; padding: 12px 24px; border-radius: 4px; cursor: pointer; font-weight: 600; margin-top: 16px;">Gerar Tarefas</button>
+                    </div>
+
+                    <!-- Tasks List -->
+                    <div class="card" style="margin-top: 24px;">
+                        <div class="card-title">Títulos Encontrados</div>
+                        <div id="tasksList"></div>
+                    </div>
+
+                    <!-- JSON Output -->
+                    <div class="card" style="margin-top: 24px;">
+                        <div class="card-title">JSON para Redmine</div>
+                        <div class="json-output" id="jsonOutput"></div>
+                        <button class="copy-btn" onclick="copyToClipboard()">📋 Copiar JSON</button>
+                    </div>
+
+                    <!-- All Days -->
+                    <div class="card" style="margin-top: 24px;">
+                        <div class="card-title">Todos os Dias</div>
+                        <div class="days-list" id="daysList"></div>
+                    </div>
                 </div>
 
-                <!-- All Days -->
-                <div class="card" style="margin-top: 24px;">
-                    <div class="card-title">Todos os Dias</div>
-                    <div class="days-list" id="daysList"></div>
+                <!-- Tasks Tab -->
+                <div class="main-tab-content" id="tasksTab">
+                    <!-- Configuration -->
+                    <div class="card">
+                        <div class="card-title">Configuração das Tarefas</div>
+                        <div class="card-description">Configure os campos para gerar as tarefas no Redmine</div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 16px;">
+                            <div class="form-group">
+                                <label class="form-label">Data Inicial</label>
+                                <input type="date" class="form-input" id="startDate" value="2026-04-01">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Data Final</label>
+                                <input type="date" class="form-input" id="dueDate" value="2026-04-15">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Tracker Padrão</label>
+                                <select class="form-select" id="defaultTracker">
+                                    <option value="5">Desenvolvimento</option>
+                                    <option value="21">Reuniões</option>
+                                    <option value="12">Análise e Refinamento</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button onclick="generateTasks()" style="background: #00d084; color: #0f172a; border: none; padding: 12px 24px; border-radius: 4px; cursor: pointer; font-weight: 600; margin-top: 16px;">Gerar Tarefas</button>
+                    </div>
+
+                    <!-- Tasks List -->
+                    <div class="card" style="margin-top: 24px;">
+                        <div class="card-title">Títulos Encontrados</div>
+                        <div id="tasksList"></div>
+                    </div>
+
+                    <!-- JSON Output -->
+                    <div class="card" style="margin-top: 24px;">
+                        <div class="card-title">JSON para Redmine</div>
+                        <div class="json-output" id="jsonOutput"></div>
+                        <button class="copy-btn" onclick="copyToClipboard()">📋 Copiar JSON</button>
+                    </div>
                 </div>
             </div>
 
@@ -587,7 +793,122 @@
             });
         };
 
+        // Global variable to store current report
+        let currentReport = null;
+
+        const switchMainTab = (tabName) => {
+            document.querySelectorAll(".main-tab").forEach(tab => tab.classList.remove("active"));
+            document.querySelectorAll(".main-tab-content").forEach(content => content.classList.remove("active"));
+            
+            document.querySelector(`[onclick="switchMainTab('${tabName}')"]`).classList.add("active");
+            document.getElementById(`${tabName}Tab`).classList.add("active");
+        };
+
+        const getUniqueTitles = (report) => {
+            const titles = new Set();
+            report.dailySummaries.forEach(day => {
+                day.activities.forEach(activity => {
+                    titles.add(activity.title);
+                });
+            });
+            return Array.from(titles).sort();
+        };
+
+        const generateTasks = () => {
+            if (!currentReport) {
+                alert("Faça upload de um arquivo CSV primeiro!");
+                return;
+            }
+
+            const startDate = document.getElementById("startDate").value;
+            const dueDate = document.getElementById("dueDate").value;
+            const defaultTracker = document.getElementById("defaultTracker").value;
+
+            const uniqueTitles = getUniqueTitles(currentReport);
+            
+            // Render tasks list
+            const tasksList = document.getElementById("tasksList");
+            tasksList.innerHTML = uniqueTitles.map(title => `
+                <div class="task-item">
+                    <div class="task-title">${title}</div>
+                    <div class="task-config">
+                        <div class="form-group">
+                            <label class="form-label">Tracker</label>
+                            <select class="form-select task-tracker" data-title="${title}">
+                                <option value="5" ${defaultTracker === "5" ? "selected" : ""}>Desenvolvimento</option>
+                                <option value="21" ${defaultTracker === "21" ? "selected" : ""}>Reuniões</option>
+                                <option value="12" ${defaultTracker === "12" ? "selected" : ""}>Análise e Refinamento</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Data Inicial</label>
+                            <input type="date" class="form-input task-start-date" data-title="${title}" value="${startDate}">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Data Final</label>
+                            <input type="date" class="form-input task-due-date" data-title="${title}" value="${dueDate}">
+                        </div>
+                    </div>
+                </div>
+            `).join("");
+
+            // Generate initial JSON
+            generateJSON();
+        };
+
+        const generateJSON = () => {
+            const tasks = [];
+            const taskItems = document.querySelectorAll(".task-item");
+            
+            taskItems.forEach(item => {
+                const title = item.querySelector(".task-title").textContent;
+                const trackerSelect = item.querySelector(".task-tracker");
+                const startDateInput = item.querySelector(".task-start-date");
+                const dueDateInput = item.querySelector(".task-due-date");
+                
+                tasks.push({
+                    "subject": title,
+                    "project_id": 333,
+                    "assigned_to_id": 388,
+                    "tracker_id": parseInt(trackerSelect.value),
+                    "start_date": startDateInput.value,
+                    "due_date": dueDateInput.value,
+                    "status_id": 3,
+                    "fixed_version_name": "SPRINT 103",
+                    "description": "Detalhes..."
+                });
+            });
+
+            const jsonOutput = {
+                "action": "create_tasks_batch",
+                "tasks": tasks
+            };
+
+            document.getElementById("jsonOutput").textContent = JSON.stringify(jsonOutput, null, 2);
+        };
+
+        const copyToClipboard = () => {
+            const jsonText = document.getElementById("jsonOutput").textContent;
+            navigator.clipboard.writeText(jsonText).then(() => {
+                alert("JSON copiado para a área de transferência!");
+            }).catch(err => {
+                console.error("Erro ao copiar:", err);
+                alert("Erro ao copiar. Use Ctrl+C para copiar manualmente.");
+            });
+        };
+
+        // Add event listeners for dynamic JSON updates
+        document.addEventListener("change", (e) => {
+            if (e.target.classList.contains("task-tracker") || 
+                e.target.classList.contains("task-start-date") || 
+                e.target.classList.contains("task-due-date")) {
+                generateJSON();
+            }
+        });
+
         const renderReport = (report) => {
+            currentReport = report; // Store globally
+            
             document.getElementById("emptyState").style.display = "none";
             document.getElementById("results").style.display = "block";
 
