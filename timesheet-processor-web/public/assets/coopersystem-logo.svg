@@ -1,0 +1,18 @@
+<svg viewBox="0 0 300 100" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="300" height="100" fill="none"/>
+  
+  <!-- Stylized symbol: overlapping circles forming a loop -->
+  <g id="symbol">
+    <!-- Green part -->
+    <path d="M 20 30 Q 20 50 35 60 Q 50 70 65 60 Q 70 55 70 45" fill="none" stroke="#2BA84A" stroke-width="8" stroke-linecap="round"/>
+    <!-- Brown part -->
+    <path d="M 70 45 Q 70 35 55 25 Q 40 15 25 25 Q 20 30 20 40" fill="none" stroke="#3C2415" stroke-width="8" stroke-linecap="round"/>
+  </g>
+  
+  <!-- Text: COOPER -->
+  <text x="95" y="65" font-family="Arial, sans-serif" font-size="36" font-weight="bold" fill="#2BA84A" letter-spacing="2">COOPER</text>
+  
+  <!-- Text: SYSTEM -->
+  <text x="95" y="90" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="#3C2415" letter-spacing="1">SYSTEM</text>
+</svg>

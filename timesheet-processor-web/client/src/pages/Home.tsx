@@ -195,9 +195,9 @@ export default function Home() {
       <header className="border-b border-border bg-card shadow-lg">
         <div className="container py-4">
           <div className="flex items-center gap-3">
-            <img 
-              src="https://d2xsxph8kpxj0f.cloudfront.net/310419663028934737/9Hdyhw3fLUo6PcvkDd26df/coopersystem-logo-transparent-3hSGAGxxh9ppEmWCRyZub6.webp" 
-              alt="Coopersystem" 
+            <img
+              src="/assets/coopersystem-logo.svg"
+              alt="Coopersystem"
               className="h-12"
             />
             <div>
