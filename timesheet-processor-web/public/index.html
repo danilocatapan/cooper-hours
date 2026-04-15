@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lançamento de Horas - BusinessMap → Coopersystem</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #0f172a;
+            color: #e2e8f0;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            border-bottom: 1px solid #334155;
+            background: #1e293b;
+            padding: 20px 0;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        header .container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        header img {
+            height: 50px;
+        }
+
+        header h1 {
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        header p {
+            font-size: 13px;
+            color: #94a3b8;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 24px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 24px;
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .card-description {
+            font-size: 13px;
+            color: #94a3b8;
+            margin-bottom: 16px;
+        }
+
+        .upload-area {
+            border: 2px dashed #334155;
+            border-radius: 8px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.3s, background-color 0.3s;
+        }
+
+        .upload-area:hover {
+            border-color: #00d084;
+            background-color: rgba(0, 208, 132, 0.05);
+        }
+
+        .upload-area.active {
+            border-color: #00d084;
+            background-color: rgba(0, 208, 132, 0.1);
+        }
+
+        .upload-icon {
+            font-size: 32px;
+            margin-bottom: 12px;
+        }
+
+        .upload-area p {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .upload-area span {
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin-top: 16px;
+            font-size: 13px;
+        }
+
+        .alert-success {
+            background-color: rgba(0, 208, 132, 0.1);
+            border: 1px solid rgba(0, 208, 132, 0.3);
+            color: #00d084;
+        }
+
+        .alert-error {
+            background-color: rgba(255, 107, 91, 0.1);
+            border: 1px solid rgba(255, 107, 91, 0.3);
+            color: #ff6b5b;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .summary-box {
+            background: rgba(0, 208, 132, 0.05);
+            border: 1px solid rgba(0, 208, 132, 0.2);
+            border-radius: 6px;
+            padding: 16px;
+        }
+
+        .summary-box.orange {
+            background: rgba(255, 107, 91, 0.05);
+            border-color: rgba(255, 107, 91, 0.2);
+        }
+
+        .summary-label {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-bottom: 8px;
+        }
+
+        .summary-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #00d084;
+        }
+
+        .summary-box.orange .summary-value {
+            color: #ff6b5b;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            overflow-x: auto;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 12px;
+        }
+
+        .tab {
+            padding: 8px 16px;
+            border: none;
+            background: none;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            border-bottom: 2px solid transparent;
+            white-space: nowrap;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            color: #00d084;
+            border-bottom-color: #00d084;
+        }
+
+        .tab:hover {
+            color: #cbd5e1;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .day-card {
+            background: #0f172a;
+            border: 2px solid #334155;
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+
+        .day-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 12px;
+        }
+
+        .day-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .day-date {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-top: 4px;
+        }
+
+        .day-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .status-green {
+            color: #00d084;
+        }
+
+        .status-orange {
+            color: #ff6b5b;
+        }
+
+        .day-hours {
+            font-size: 13px;
+            color: #94a3b8;
+            margin-bottom: 12px;
+        }
+
+        .activities {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .activity {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            padding: 8px 12px;
+            background: #1e293b;
+            border-radius: 4px;
+            border: 1px solid #334155;
+        }
+
+        .activity-title {
+            flex: 1;
+            font-size: 12px;
+            color: #e2e8f0;
+        }
+
+        .activity-hours {
+            background: rgba(0, 208, 132, 0.2);
+            color: #00d084;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 8px;
+            white-space: nowrap;
+        }
+
+        .days-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .day-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .day-item:hover {
+            background-color: #1e293b;
+        }
+
+        .day-item-info {
+            flex: 1;
+        }
+
+        .day-item-date {
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .day-item-activities {
+            font-size: 11px;
+            color: #94a3b8;
+            margin-top: 2px;
+        }
+
+        .day-item-hours {
+            font-size: 12px;
+            font-weight: 600;
+            color: #00d084;
+            margin-right: 12px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #94a3b8;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .empty-state p {
+            font-size: 14px;
+        }
+
+        footer {
+            border-top: 1px solid #334155;
+            background: #1e293b;
+            padding: 20px 0;
+            margin-top: 40px;
+            text-align: center;
+            color: #94a3b8;
+            font-size: 12px;
+        }
+
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .summary-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #334155;
+            border-top-color: #00d084;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <img src="https://d2xsxph8kpxj0f.cloudfront.net/310419663028934737/9Hdyhw3fLUo6PcvkDd26df/coopersystem-logo-transparent-3hSGAGxxh9ppEmWCRyZub6.webp" alt="Coopersystem">
+            <div>
+                <h1>Lançamento de horas</h1>
+                <p>BusinessMap → Coopersystem</p>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="main-grid">
+            <!-- Upload Section -->
+            <div class="card" style="height: fit-content;">
+                <div class="card-title">Upload CSV</div>
+                <div class="card-description">Selecione seu arquivo de timesheet</div>
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">📤</div>
+                    <p>Clique para selecionar</p>
+                    <span>ou arraste um arquivo</span>
+                    <input type="file" id="fileInput" accept=".csv,.tsv,.txt">
+                </div>
+                <div id="status"></div>
+            </div>
+
+            <!-- Results Section -->
+            <div id="results" style="display: none;">
+                <!-- Summary -->
+                <div class="card">
+                    <div class="card-title">Resumo Geral</div>
+                    <div class="summary-grid">
+                        <div class="summary-box">
+                            <div class="summary-label">Total de Horas</div>
+                            <div class="summary-value" id="totalHours">0h</div>
+                        </div>
+                        <div class="summary-box orange">
+                            <div class="summary-label">Dias Registrados</div>
+                            <div class="summary-value" id="daysCount">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabs -->
+                <div class="card" style="margin-top: 24px;">
+                    <div class="tabs" id="tabs"></div>
+                    <div id="tabsContent"></div>
+                </div>
+
+                <!-- All Days -->
+                <div class="card" style="margin-top: 24px;">
+                    <div class="card-title">Todos os Dias</div>
+                    <div class="days-list" id="daysList"></div>
+                </div>
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyState">
+                <div class="card">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📁</div>
+                        <p>Faça upload de um arquivo CSV para começar a processar seus registros de timesheet</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>Lançamento de horas BusinessMap → Coopersystem v1.0</p>
+    </footer>
+
+    <script>
+        const parseNumber = (numberStr) => {
+            if (!numberStr || numberStr.trim() === "") return 0.0;
+            let cleaned = numberStr.trim();
+            cleaned = cleaned.replace(",", "");
+            try {
+                return parseFloat(cleaned);
+            } catch {
+                return 0.0;
+            }
+        };
+
+        const detectSeparator = (headerLine) => {
+            if (headerLine.includes("\t")) return "\t";
+            if (headerLine.includes(";")) return ";";
+            if (headerLine.includes(",")) return ",";
+            if (headerLine.includes("  ")) return " ";
+            return ",";
+        };
+
+        const findHeaderIndex = (headers, ...possibleNames) => {
+            for (const name of possibleNames) {
+                for (let i = 0; i < headers.length; i++) {
+                    if (headers[i].toLowerCase() === name.toLowerCase()) {
+                        return i;
+                    }
+                }
+            }
+            return -1;
+        };
+
+        const processCsv = (csvText) => {
+            let lines = csvText.split("\n").map(line => line.trim()).filter(line => line.length > 0);
+            if (lines.length === 0) throw new Error("CSV vazio");
+
+            const headerLine = lines[0];
+            const separator = detectSeparator(headerLine);
+            const headers = headerLine.split(separator).map((h) => h.trim().replace(/"/g, ""));
+
+            const titleIdx = findHeaderIndex(headers, "Título", "Titulo");
+            const dataIdx = findHeaderIndex(headers, "Data");
+            const tempoIdx = findHeaderIndex(headers, "Tempo registrado soma", "Tempo");
+
+            if (titleIdx === -1 || dataIdx === -1 || tempoIdx === -1) {
+                throw new Error("Colunas obrigatórias não encontradas (Título, Data, Tempo registrado soma)");
+            }
+
+            const dailySummaries = new Map();
+            let overallTotalHours = 0;
+
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i];
+                if (!line) continue;
+
+                const cols = line.split(separator).map((c) => c.trim().replace(/"/g, ""));
+
+                if (cols.length <= Math.max(titleIdx, dataIdx, tempoIdx)) continue;
+
+                try {
+                    const date = cols[dataIdx]?.trim();
+                    const title = cols[titleIdx]?.trim();
+                    const hours = parseNumber(cols[tempoIdx]);
+
+                    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+                    if (!title || hours === 0) continue;
+
+                    if (!dailySummaries.has(date)) {
+                        dailySummaries.set(date, {
+                            date,
+                            activities: [],
+                            totalHours: 0,
+                            status: "",
+                        });
+                    }
+
+                    const summary = dailySummaries.get(date);
+                    summary.activities.push({ title, hours });
+                    summary.totalHours += hours;
+                    overallTotalHours += hours;
+                } catch (e) {
+                    // silenciar erros
+                }
+            }
+
+            const sortedSummaries = Array.from(dailySummaries.values())
+                .sort((a, b) => b.date.localeCompare(a.date))
+                .map((summary) => {
+                    if (summary.totalHours < 8) {
+                        summary.status = "Menos de 8 horas";
+                    } else if (summary.totalHours > 8) {
+                        summary.status = "Mais de 8 horas";
+                    } else {
+                        summary.status = "No horário";
+                    }
+                    summary.activities.sort((a, b) => a.title.localeCompare(b.title));
+                    return summary;
+                });
+
+            return {
+                dailySummaries: sortedSummaries,
+                overallTotalHours,
+            };
+        };
+
+        const getStatusIcon = (status) => {
+            if (status === "No horário") return "✓";
+            if (status.includes("Menos")) return "⚠️";
+            return "📈";
+        };
+
+        const formatDate = (dateStr) => {
+            const date = new Date(dateStr + "T00:00:00");
+            return date.toLocaleDateString("pt-BR", {
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+            });
+        };
+
+        const formatDateShort = (dateStr) => {
+            const date = new Date(dateStr + "T00:00:00");
+            return date.toLocaleDateString("pt-BR", {
+                month: "short",
+                day: "numeric",
+            });
+        };
+
+        const renderReport = (report) => {
+            document.getElementById("emptyState").style.display = "none";
+            document.getElementById("results").style.display = "block";
+
+            // Update summary
+            document.getElementById("totalHours").textContent = report.overallTotalHours.toFixed(1) + "h";
+            document.getElementById("daysCount").textContent = report.dailySummaries.length;
+
+            // Create tabs for first 5 days
+            const tabsContainer = document.getElementById("tabs");
+            const tabsContent = document.getElementById("tabsContent");
+            tabsContainer.innerHTML = "";
+            tabsContent.innerHTML = "";
+
+            report.dailySummaries.forEach((day, idx) => {
+                // Tab button
+                const tab = document.createElement("button");
+                tab.className = `tab ${idx === 0 ? "active" : ""}`;
+                tab.textContent = formatDateShort(day.date);
+                tab.onclick = () => {
+                    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+                    document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+                    tab.classList.add("active");
+                    document.getElementById(`tab-${idx}`).classList.add("active");
+                };
+                tabsContainer.appendChild(tab);
+
+                // Tab content
+                const content = document.createElement("div");
+                content.id = `tab-${idx}`;
+                content.className = `tab-content ${idx === 0 ? "active" : ""}`;
+                content.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 16px;">
+                        <div>
+                            <div class="card-title">${formatDate(day.date)}</div>
+                            <div class="card-description">${day.totalHours.toFixed(1)}h de trabalho</div>
+                        </div>
+                        <div class="day-status">
+                            <span>${getStatusIcon(day.status)}</span>
+                            <span class="${day.status === "No horário" ? "status-green" : "status-orange"}">${day.status}</span>
+                        </div>
+                    </div>
+                    <div class="activities">
+                        ${day.activities.map(act => `
+                            <div class="activity">
+                                <div class="activity-title">${act.title}</div>
+                                <div class="activity-hours">${act.hours.toFixed(1)}h</div>
+                            </div>
+                        `).join("")}
+                    </div>
+                `;
+                tabsContent.appendChild(content);
+            });
+
+            // All days list
+            const daysList = document.getElementById("daysList");
+            daysList.innerHTML = report.dailySummaries.map((day, idx) => `
+                <div class="day-item">
+                    <div class="day-item-info">
+                        <div class="day-item-date">${day.date}</div>
+                        <div class="day-item-activities">${day.activities.length} atividades</div>
+                    </div>
+                    <div class="day-item-hours">${day.totalHours.toFixed(1)}h</div>
+                    <span>${getStatusIcon(day.status)}</span>
+                </div>
+            `).join("");
+        };
+
+        // Upload handling
+        const uploadArea = document.getElementById("uploadArea");
+        const fileInput = document.getElementById("fileInput");
+        const statusDiv = document.getElementById("status");
+
+        uploadArea.addEventListener("click", () => fileInput.click());
+
+        uploadArea.addEventListener("dragover", (e) => {
+            e.preventDefault();
+            uploadArea.classList.add("active");
+        });
+
+        uploadArea.addEventListener("dragleave", () => {
+            uploadArea.classList.remove("active");
+        });
+
+        uploadArea.addEventListener("drop", (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove("active");
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                handleFileUpload();
+            }
+        });
+
+        fileInput.addEventListener("change", handleFileUpload);
+
+        function handleFileUpload() {
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            statusDiv.innerHTML = '<div style="display: flex; gap: 8px; margin-top: 16px;"><div class="spinner"></div> Processando...</div>';
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const csvText = e.target.result;
+                    const report = processCsv(csvText);
+                    renderReport(report);
+                    statusDiv.innerHTML = '<div class="alert alert-success">✓ Arquivo processado com sucesso!</div>';
+                } catch (err) {
+                    statusDiv.innerHTML = `<div class="alert alert-error">❌ ${err.message}</div>`;
+                    document.getElementById("results").style.display = "none";
+                    document.getElementById("emptyState").style.display = "block";
+                }
+            };
+            reader.readAsText(file);
+        }
+    </script>
+</body>
+</html>
