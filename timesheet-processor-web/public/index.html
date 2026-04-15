@@ -362,6 +362,37 @@
             font-size: 12px;
         }
 
+        .time-entry-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 2fr auto;
+            gap: 12px;
+            padding: 12px;
+            background: #1e293b;
+            border-radius: 4px;
+            margin-bottom: 12px;
+            align-items: center;
+        }
+
+        .time-entry-row input,
+        .time-entry-row select {
+            padding: 8px;
+            border: 1px solid #334155;
+            border-radius: 4px;
+            background: #0f172a;
+            color: #e2e8f0;
+            font-size: 14px;
+        }
+
+        .time-entry-row button {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
         @media (max-width: 1024px) {
             .main-grid {
                 grid-template-columns: 1fr;
@@ -528,6 +559,7 @@
                 <div class="main-tabs">
                     <button class="main-tab active" onclick="switchMainTab('report')">📊 Relatório</button>
                     <button class="main-tab" onclick="switchMainTab('tasks')">📋 Criar Tarefas</button>
+                    <button class="main-tab" onclick="switchMainTab('timeentries')">⏱️ Registrar Tempo</button>
                 </div>
 
                 <!-- Report Tab -->
@@ -647,6 +679,51 @@
                         <button class="copy-btn" onclick="copyToClipboard()">📋 Copiar JSON</button>
                     </div>
                 </div>
+
+                <!-- Time Entries Tab -->
+                <div class="main-tab-content" id="timeentriesTab">
+                    <!-- Card Selection -->
+                    <div class="card">
+                        <div class="card-title">Configuração de Mapeamento</div>
+                        <div class="card-description">Selecione um cartão e configure os registros de tempo</div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 16px;">
+                            <div class="form-group">
+                                <label class="form-label">ID do Cartão</label>
+                                <select class="form-select" id="cardIdSelect" onchange="loadCardEntries()">
+                                    <option value="">Selecione um cartão...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Issue ID</label>
+                                <input type="number" class="form-input" id="issueIdInput" placeholder="ex: 289825">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Atividade Padrão</label>
+                                <select class="form-select" id="activitySelect">
+                                    <option value="9">Desenvolvimento</option>
+                                    <option value="10">Reuniões</option>
+                                    <option value="20" selected>Análise e Refinamento</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Time Entries List -->
+                    <div class="card" style="margin-top: 24px;">
+                        <div class="card-title">Registros de Tempo</div>
+                        <div class="card-description">Adicione ou edite os registros de tempo</div>
+                        <div id="timeEntriesList"></div>
+                        <button onclick="addTimeEntry()" style="background: #00d084; color: #0f172a; border: none; padding: 12px 24px; border-radius: 4px; cursor: pointer; font-weight: 600; margin-top: 16px;">+ Adicionar Registro</button>
+                    </div>
+
+                    <!-- JSON Output -->
+                    <div class="card" style="margin-top: 24px;">
+                        <div class="card-title">JSON para Redmine - Time Entries</div>
+                        <div class="json-output" id="timeEntriesJsonOutput"></div>
+                        <button class="copy-btn" onclick="copyTimeEntriesJSON()">📋 Copiar JSON</button>
+                        <button onclick="generateTimeEntriesJSON()" style="background: #00d084; color: #0f172a; border: none; padding: 12px 24px; border-radius: 4px; cursor: pointer; font-weight: 600; margin-top: 16px; margin-left: 8px;">🔄 Gerar JSON</button>
+                    </div>
+                </div>
             </div>
 
             <!-- Empty State -->
@@ -707,12 +784,14 @@
             const titleIdx = findHeaderIndex(headers, "Título", "Titulo");
             const dataIdx = findHeaderIndex(headers, "Data");
             const tempoIdx = findHeaderIndex(headers, "Tempo registrado soma", "Tempo");
+            const cardIdx = findHeaderIndex(headers, "ID do cartão", "ID do cartao", "Card ID");
 
             if (titleIdx === -1 || dataIdx === -1 || tempoIdx === -1) {
                 throw new Error("Colunas obrigatórias não encontradas (Título, Data, Tempo registrado soma)");
             }
 
             const dailySummaries = new Map();
+            const allCardIds = new Set();
             let overallTotalHours = 0;
 
             for (let i = 1; i < lines.length; i++) {
@@ -727,9 +806,12 @@
                     const date = cols[dataIdx]?.trim();
                     const title = cols[titleIdx]?.trim();
                     const hours = parseNumber(cols[tempoIdx]);
+                    const cardId = cardIdx !== -1 ? cols[cardIdx]?.trim() : "";
 
                     if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
                     if (!title || hours === 0) continue;
+
+                    if (cardId) allCardIds.add(cardId);
 
                     if (!dailySummaries.has(date)) {
                         dailySummaries.set(date, {
@@ -741,7 +823,7 @@
                     }
 
                     const summary = dailySummaries.get(date);
-                    summary.activities.push({ title, hours });
+                    summary.activities.push({ title, hours, cardId });
                     summary.totalHours += hours;
                     overallTotalHours += hours;
                 } catch (e) {
@@ -766,6 +848,7 @@
             return {
                 dailySummaries: sortedSummaries,
                 overallTotalHours,
+                cardIds: Array.from(allCardIds).sort(),
             };
         };
 
@@ -906,6 +989,13 @@
             }
         });
 
+        // Add event listener for time entries activity change
+        document.addEventListener("change", (e) => {
+            if (e.target.id === "activitySelect" || e.target.id === "issueIdInput") {
+                generateTimeEntriesJSON();
+            }
+        });
+
         const renderReport = (report) => {
             currentReport = report; // Store globally
             
@@ -915,6 +1005,18 @@
             // Update summary
             document.getElementById("totalHours").textContent = report.overallTotalHours.toFixed(1) + "h";
             document.getElementById("daysCount").textContent = report.dailySummaries.length;
+
+            // Populate card ID select
+            const cardSelect = document.getElementById("cardIdSelect");
+            cardSelect.innerHTML = '<option value="">Selecione um cartão...</option>';
+            if (report.cardIds && report.cardIds.length > 0) {
+                report.cardIds.forEach(cardId => {
+                    const option = document.createElement("option");
+                    option.value = cardId;
+                    option.textContent = `Cartão ${cardId}`;
+                    cardSelect.appendChild(option);
+                });
+            }
 
             // Create tabs for first 5 days
             const tabsContainer = document.getElementById("tabs");
@@ -974,6 +1076,104 @@
                     <span>${getStatusIcon(day.status)}</span>
                 </div>
             `).join("");
+        };
+
+        // Time Entries Management
+        let timeEntriesData = [];
+
+        const populateCardSelect = () => {
+            if (!currentReport) return;
+            
+            const cardIds = new Set();
+            currentReport.dailySummaries.forEach(day => {
+                day.activities.forEach(activity => {
+                    // We need to get the card ID from the CSV data
+                    // This would require storing additional metadata
+                });
+            });
+            
+            const select = document.getElementById("cardIdSelect");
+            select.innerHTML = '<option value="">Selecione um cartão...</option>';
+        };
+
+        const loadCardEntries = () => {
+            const cardId = document.getElementById("cardIdSelect").value;
+            if (!cardId || !currentReport) {
+                document.getElementById("timeEntriesList").innerHTML = '';
+                return;
+            }
+            
+            // Load entries from CSV data for this card
+            timeEntriesData = [];
+            currentReport.dailySummaries.forEach(day => {
+                day.activities.forEach(activity => {
+                    if (activity.cardId === cardId) {
+                        timeEntriesData.push({
+                            hours: activity.hours,
+                            spent_on: day.date,
+                            comments: ""
+                        });
+                    }
+                });
+            });
+            
+            renderTimeEntries();
+            generateTimeEntriesJSON();
+        };
+
+        const addTimeEntry = () => {
+            timeEntriesData.push({
+                hours: 1,
+                spent_on: new Date().toISOString().split('T')[0],
+                comments: ""
+            });
+            renderTimeEntries();
+        };
+
+        const renderTimeEntries = () => {
+            const container = document.getElementById("timeEntriesList");
+            if (timeEntriesData.length === 0) {
+                container.innerHTML = '<p style="color: #94a3b8; padding: 16px;">Nenhum registro adicionado. Clique em "+ Adicionar Registro" para começar.</p>';
+                return;
+            }
+            
+            container.innerHTML = timeEntriesData.map((entry, idx) => `
+                <div class="time-entry-row">
+                    <input type="number" step="0.25" value="${entry.hours}" onchange="timeEntriesData[${idx}].hours = parseFloat(this.value); generateTimeEntriesJSON();" placeholder="Horas">
+                    <input type="date" value="${entry.spent_on}" onchange="timeEntriesData[${idx}].spent_on = this.value; generateTimeEntriesJSON();" placeholder="Data">
+                    <input type="text" value="${entry.comments}" onchange="timeEntriesData[${idx}].comments = this.value; generateTimeEntriesJSON();" placeholder="Comentários">
+                    <button onclick="timeEntriesData.splice(${idx}, 1); renderTimeEntries(); generateTimeEntriesJSON();">🗑️ Remover</button>
+                </div>
+            `).join("");
+        };
+
+        const generateTimeEntriesJSON = () => {
+            const issueId = document.getElementById("issueIdInput").value;
+            const activityId = document.getElementById("activitySelect").value;
+            if (!issueId) {
+                document.getElementById("timeEntriesJsonOutput").textContent = 'Preencha o Issue ID primeiro';
+                return;
+            }
+
+            const jsonData = timeEntriesData.map(entry => ({
+                "issue_id": parseInt(issueId),
+                "hours": parseFloat(entry.hours),
+                "spent_on": entry.spent_on,
+                "activity_id": parseInt(activityId),
+                "comments": entry.comments
+            }));
+
+            document.getElementById("timeEntriesJsonOutput").textContent = JSON.stringify(jsonData, null, 2);
+        };
+
+        const copyTimeEntriesJSON = () => {
+            const jsonText = document.getElementById("timeEntriesJsonOutput").textContent;
+            navigator.clipboard.writeText(jsonText).then(() => {
+                alert("JSON copiado para a área de transferência!");
+            }).catch(err => {
+                console.error("Erro ao copiar:", err);
+                alert("Erro ao copiar. Use Ctrl+C para copiar manualmente.");
+            });
         };
 
         // Upload handling

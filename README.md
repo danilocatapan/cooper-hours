@@ -13,11 +13,15 @@ Processador de planilhas de horas BusinessMap para Coopersystem.
 
 ## 📋 Funcionalidades
 
-- ✅ Upload e processamento de arquivos CSV
-- ✅ Relatório detalhado de horas trabalhadas
-- ✅ Validação de regras de horas (8h/dia)
-- ✅ Geração de JSON para criação de tarefas no Redmine
-- ✅ Interface responsiva e moderna
+- ✅ **Upload de CSV** - Processamento completo dos dados
+- ✅ **Relatório de Horas** - Análise detalhada com validações
+- ✅ **Aba "Criar Tarefas"** - Geração de JSON para criação de tarefas no Redmine
+- ✅ **Aba "Registrar Tempo"** - Mapeamento de cartões e geração de time entries
+  - Seleção de cartão do CSV
+  - Configuração de Issue ID
+  - Seleção de atividade (Desenvolvimento, Reuniões, Análise e Refinamento)
+  - Adicionar/editar registros de tempo
+  - Geração automática de JSON para Redmine
 
 ## 🛠️ Desenvolvimento
 
