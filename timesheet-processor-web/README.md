@@ -121,8 +121,8 @@ Danilo	987605	[313-Maestro] Refinamento	"#bbseg"	2026-04-01	2.000
 
 1. **Extrair o arquivo ZIP:**
    ```bash
-   unzip timesheet-processor-web.zip
-   cd timesheet-processor-web
+   unzip cooper-hours.zip
+   cd cooper-hours
    ```
 
 2. **Instalar dependências:**
@@ -167,7 +167,7 @@ node test_integration.mjs
 ### Estrutura de Diretórios
 
 ```
-timesheet-processor-web/
+cooper-hours/
 ├── client/                      # Frontend React
 │   ├── public/                  # Arquivos estáticos (favicon, etc)
 │   ├── src/
