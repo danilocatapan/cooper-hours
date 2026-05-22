@@ -1,0 +1,67 @@
+name: CI/CD - Build and Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Enable corepack and pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@latest --activate
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build project
+        run: pnpm run build
+
+      - name: Type check
+        run: pnpm run check
+
+      - name: Install Playwright browsers and deps
+        run: |
+          # Install playwright browsers and required dependencies
+          npx playwright install-deps || true
+          npx playwright install || true
+
+      - name: Run E2E tests
+        env:
+          E2E_BASE_URL: http://127.0.0.1:4173
+        run: |
+          # Run a lightweight preview server to serve the built `dist` folder
+          pnpm add -D serve@14 --silent
+          npx serve -s dist -l 4173 &
+          sleep 2
+          pnpm run test:e2e
+
+      - name: Upload artifact for Pages
+        uses: actions/upload-pages-artifact@v1
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v1

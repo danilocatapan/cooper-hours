@@ -31,14 +31,23 @@ export default function Home() {
   const parseNumber = (numberStr: string): number => {
     if (!numberStr || numberStr.trim() === "") return 0.0;
 
-    let cleaned = numberStr.trim();
-    cleaned = cleaned.replace(",", "");
+    let s = numberStr.trim();
+    s = s.replace(/"/g, "");
 
-    try {
-      return parseFloat(cleaned);
-    } catch {
-      return 0.0;
+    // Tratamento robusto de separadores:
+    // - Se a string contém '.' e ',' assume-se que ',' é separador de milhares (ex: 1,234.56)
+    // - Se contém apenas ',' assume-se que ',' é separador decimal (ex: 5,5 -> 5.5)
+    if (s.includes(".") && s.includes(",")) {
+      s = s.replace(/,/g, "");
+    } else if (s.includes(",")) {
+      s = s.replace(/,/g, ".");
     }
+
+    // Remover espaços residuais
+    s = s.replace(/\s+/g, "");
+
+    const n = parseFloat(s);
+    return Number.isFinite(n) ? n : 0.0;
   };
 
   const detectSeparator = (headerLine: string): string => {
