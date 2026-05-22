@@ -40,6 +40,10 @@ jobs:
         working-directory: cooper-hours-web
         run: pnpm run build
 
+      - name: Add SPA fallback
+        working-directory: cooper-hours-web
+        run: cp dist/index.html dist/404.html
+
       - name: Upload artifact for Pages
         uses: actions/upload-pages-artifact@v3
         with:
