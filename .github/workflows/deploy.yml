@@ -9,13 +9,14 @@ permissions:
   pages: write
   id-token: write
 
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
+
     steps:
       - uses: actions/checkout@v4
 
@@ -31,22 +32,28 @@ jobs:
         working-directory: cooper-hours-web
         run: pnpm install --frozen-lockfile
 
-      - name: Build project
-        working-directory: cooper-hours-web
-        run: pnpm run build
-
       - name: Type check
         working-directory: cooper-hours-web
         run: pnpm run check
 
+      - name: Build project
+        working-directory: cooper-hours-web
+        run: pnpm run build
+
       - name: Upload artifact for Pages
-        uses: actions/upload-pages-artifact@v1
+        uses: actions/upload-pages-artifact@v3
         with:
           path: cooper-hours-web/dist
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
     steps:
       - name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v1
+        id: deployment
+        uses: actions/deploy-pages@v4
