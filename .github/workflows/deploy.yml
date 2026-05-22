@@ -16,9 +16,6 @@ jobs:
       contents: read
       pages: write
       id-token: write
-    defaults:
-      run:
-        working-directory: cooper-hours-web
     steps:
       - uses: actions/checkout@v4
 
@@ -28,17 +25,18 @@ jobs:
           node-version: '20'
 
       - name: Enable corepack and pnpm
-        run: |
-          corepack enable
-          corepack prepare pnpm@latest --activate
+        run: corepack enable && corepack prepare pnpm@latest --activate
 
       - name: Install dependencies
+        working-directory: cooper-hours-web
         run: pnpm install --frozen-lockfile
 
       - name: Build project
+        working-directory: cooper-hours-web
         run: pnpm run build
 
       - name: Type check
+        working-directory: cooper-hours-web
         run: pnpm run check
 
       - name: Upload artifact for Pages
