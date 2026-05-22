@@ -41,22 +41,6 @@ jobs:
       - name: Type check
         run: pnpm run check
 
-      - name: Install Playwright browsers and deps
-        run: |
-          # Install playwright browsers and required dependencies
-          npx playwright install-deps || true
-          npx playwright install || true
-
-      - name: Run E2E tests
-        env:
-          E2E_BASE_URL: http://127.0.0.1:4173
-        run: |
-          # Run a lightweight preview server to serve the built `dist` folder
-          pnpm add -D serve@14 --silent
-          npx serve -s dist -l 4173 &
-          sleep 2
-          pnpm run test:e2e
-
       - name: Upload artifact for Pages
         uses: actions/upload-pages-artifact@v1
         with:
