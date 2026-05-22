@@ -198,6 +198,12 @@ export default function Home() {
     return "bg-[#00D084]/10 border-[#00D084]/30";
   };
 
+  const formatLocalDate = (date: string, options?: Intl.DateTimeFormatOptions) => {
+    return new Date(`${date}T00:00:00`).toLocaleDateString("pt-BR", options);
+  };
+
+  const logoSrc = `${import.meta.env.BASE_URL}assets/coopersystem-logo.svg`;
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -205,7 +211,7 @@ export default function Home() {
         <div className="container py-4">
           <div className="flex items-center gap-3">
             <img
-              src="/assets/coopersystem-logo.svg"
+              src={logoSrc}
               alt="Coopersystem"
               className="h-12"
             />
@@ -297,7 +303,7 @@ export default function Home() {
                   <TabsList className="grid w-full grid-cols-3 lg:grid-cols-5 bg-card border border-border">
                     {report.dailySummaries.slice(0, 5).map((summary, idx) => (
                       <TabsTrigger key={idx} value={idx.toString()} className="text-xs">
-                        {new Date(summary.date).toLocaleDateString("pt-BR", { month: "short", day: "numeric" })}
+                        {formatLocalDate(summary.date, { month: "short", day: "numeric" })}
                       </TabsTrigger>
                     ))}
                   </TabsList>
@@ -309,7 +315,7 @@ export default function Home() {
                           <div className="flex items-start justify-between">
                             <div>
                               <CardTitle className="text-lg text-foreground">
-                                {new Date(summary.date).toLocaleDateString("pt-BR", {
+                                {formatLocalDate(summary.date, {
                                   weekday: "long",
                                   year: "numeric",
                                   month: "long",
@@ -358,7 +364,7 @@ export default function Home() {
                         <div key={idx} className="flex items-center justify-between p-3 hover:bg-[#3a4a5f]/50 rounded-lg transition-colors">
                           <div>
                             <p className="text-sm font-medium text-foreground">
-                              {new Date(summary.date).toLocaleDateString("pt-BR")}
+                              {formatLocalDate(summary.date)}
                             </p>
                             <p className="text-xs text-muted-foreground">{summary.activities.length} atividades</p>
                           </div>

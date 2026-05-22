@@ -91,7 +91,7 @@ Danilo	987605	[313-Maestro] Refinamento	"#bbseg"	2026-04-01	2.000
 
 ### Via Web (Recomendado)
 
-1. Acesse: **https://timesheetapp-9hdyhw3f.manus.space**
+1. Acesse a publicacao atual do GitHub Pages: **https://danilocatapan.github.io/cooper-hours/**
 2. Clique em "Clique para selecionar" ou arraste um arquivo CSV
 3. O sistema processará automaticamente e exibirá o relatório
 4. Visualize:
@@ -136,11 +136,11 @@ Danilo	987605	[313-Maestro] Refinamento	"#bbseg"	2026-04-01	2.000
    ```
 
 4. **Acessar a aplicação:**
-   - Abra o navegador em: `http://localhost:5173`
+   - Abra o navegador em: `http://localhost:3000`
    - O servidor está pronto quando você ver:
      ```
      VITE v7.1.9  ready in XXX ms
-     ➜  Local:   http://localhost:5173/
+     ➜  Local:   http://localhost:3000/
      ```
 
 ### Comandos Disponíveis
@@ -157,7 +157,7 @@ pnpm run preview
 
 # Executar testes unitários
 node test_comprehensive.mjs
-node test_integration.mjs
+pnpm run test:e2e
 ```
 
 ---
@@ -185,7 +185,7 @@ cooper-hours/
 ├── vite.config.ts              # Configuração Vite
 ├── tsconfig.json               # Configuração TypeScript
 ├── test_comprehensive.mjs       # Testes unitários
-├── test_integration.mjs         # Testes de integração
+├── e2e/                         # Testes de ponta a ponta com Playwright
 └── README.md                    # Documentação original
 ```
 
@@ -272,12 +272,12 @@ node test_comprehensive.mjs
 - ✅ Sem dias fantasmas (31/03/2026)
 - ✅ 15/04/2026 presente e exibido
 
-#### 2. Teste de Integração (`test_integration.mjs`)
+#### 2. Testes de ponta a ponta (`pnpm run test:e2e`)
 
 Simula o processamento completo como o site faria:
 
 ```bash
-node test_integration.mjs
+pnpm run test:e2e
 ```
 
 **Validações:**
@@ -293,10 +293,10 @@ node test_integration.mjs
 node test_comprehensive.mjs
 
 # Teste de integração
-node test_integration.mjs
+pnpm run test:e2e
 
 # Ambos
-node test_comprehensive.mjs && node test_integration.mjs
+node test_comprehensive.mjs && pnpm run test:e2e
 ```
 
 **Resultado esperado:** Todos os testes devem passar com ✅

@@ -1,52 +1,46 @@
-# AGENTS.md — Instruções persistentes para agentes (Codex / Claude Code)
+# AGENTS.md - Instrucoes persistentes para agentes
 
-Este arquivo fornece instruções que agentes compatíveis (Codex, Claude Code, etc.) podem ler ao abrir o repositório. Use-o para padronizar comportamento e incluir passos automáticos de verificação de skills.
+Este arquivo orienta agentes que trabalham neste repositorio. Use estas instrucoes para evitar perguntas repetidas sobre execucao, validacao e uso de skills.
 
-## Objetivos principais
-- Manter um inventário de skills relevantes para o projeto.
-- Sempre validar `SKILL.md` quando uma nova skill for adicionada.
-- Sugerir adaptações de prompt quando uma skill adequada existir.
+## Projeto
 
-## Bloco de instruções (exemplo para incluir ao agente)
+- Raiz do app: `cooper-hours-web`.
+- Aplicacao principal: React + Vite em `client/src`.
+- Porta Vite configurada: `3000`.
+- Build de producao: `dist/public`.
 
-1. Ao iniciar, liste skills instaladas localmente (`ls ~/.agents/skills`).
-2. Para cada skill encontrada, leia a primeira seção do `SKILL.md` e extraia `name` e `description`.
-3. Compare a descrição com a tarefa corrente; se houver match, sugira ao usuário: "Posso usar a skill `<skill-name>` para X — deseja que eu ative/execute?".
-4. Se uma nova skill for adicionada ao repositório, execute um checklist: validar `description`, extrair comandos de instalação e testar (simulado) se a skill é segura (sem chamadas de rede não autorizadas).
+## Execucao no Windows desta maquina
 
-## Comandos úteis (para humanos)
-- Listar skills locais: `ls ~/.agents/skills`
-- Ver SKILL.md de uma skill: `sed -n '1,40p' ~/.agents/skills/<skill>/SKILL.md`
-- Instalar via instalador (quando disponível): `skill-installer <skill-name>` ou seguir instruções no `README` do skill.
+- Se `pnpm` nao estiver no PATH, use diretamente: `C:\Users\danilo.catapan\AppData\Roaming\npm\pnpm.cmd`.
+- Nao pergunte novamente qual gerenciador usar quando esse caminho existir; use-o automaticamente.
+- Execute comandos a partir de `cooper-hours-web`.
 
-## Recomendações de integração com VS Code + Codex
-- Mantenha `AGENTS.md` na raiz para que Codex/Claude o use como `AGENTS.md` do projeto.
-- Use `create-plan` antes de grandes mudanças e `gh-fix-ci` como skill de reação a falhas de CI.
+## Comandos padrao
 
----
-Arquivo criado: [AGENTS.md](AGENTS.md)
-
-## Snippet sugerido: Auto-review de skills e reescrita de prompts
-
-Quando o agente iniciar uma tarefa, execute este fluxo automaticamente:
-
-1. Liste skills locais: `ls ~/.agents/skills`.
-2. Para cada skill, leia `SKILL.md` e extraia `name`, `description` e `triggers` (se houver).
-3. Calcule uma similaridade simples entre a descrição da tarefa do usuário e a descrição da skill (p.ex. termo-chave em comum, ou modelo de embedding quando disponível).
-4. Se `similarity_score >= 0.6` proponha ao usuário: "Posso usar a skill `<skill-name>` para ajudar (descrição curta). Deseja que eu a aplique?".
-5. Se autorizado, reescreva o prompt incluindo uma linha no início: `Use-Skill: <skill-name>` e insira quaisquer constraints sugeridos pelo `SKILL.md`.
-
-Exemplo de reescrita automática do prompt:
-
-```
-Use-Skill: create-plan
-Task: Implementar endpoint POST /evidence que agrega eventos de ponto
-Constraints: Gere um plano passo-a-passo; liste arquivos a serem alterados; proponha testes unitários.
+```powershell
+& 'C:\Users\danilo.catapan\AppData\Roaming\npm\pnpm.cmd' run dev
+& 'C:\Users\danilo.catapan\AppData\Roaming\npm\pnpm.cmd' run check
+& 'C:\Users\danilo.catapan\AppData\Roaming\npm\pnpm.cmd' run build
+& 'C:\Users\danilo.catapan\AppData\Roaming\npm\pnpm.cmd' run test:e2e
+node test_comprehensive.mjs
 ```
 
-Notas de segurança:
-- Não execute automaticamente skills que contenham scripts com chamadas de rede externas sem confirmação explícita do usuário.
-- Sempre registre (log) quais skills foram usadas e peça confirmação antes de commitar alterações.
+Para testes Playwright contra servidor local, use `E2E_BASE_URL=http://localhost:3000` quando precisar apontar explicitamente para o servidor.
 
-Com isso, o agente ajuda a identificar e aplicar skills relevantes, e você não precisa decorar nomes — basta aprovar quando o agente sugerir.
+## Validacao esperada
 
+- Antes de concluir alteracoes funcionais, rode typecheck, build e testes relevantes.
+- Para mudancas de UI, valide com Playwright em browser real, incluindo snapshots de acessibilidade, console, desktop e mobile.
+- Registre qualquer aviso pre-existente separadamente de regressao nova.
+
+## Skills
+
+- Use `webapp-testing` e `playwright` para fluxos de UI.
+- Use `create-plan` quando o usuario pedir plano antes da execucao.
+- Leia o `SKILL.md` relevante antes de aplicar uma skill nova.
+
+## Cuidados
+
+- Nao reverta alteracoes do usuario sem pedido explicito.
+- Nao edite manualmente `node_modules` ou `dist`; eles sao artefatos de instalacao/build.
+- Preserve o escopo do pedido e remova codigo obsoleto apenas quando a falta de uso for confirmada por busca no repositorio.
