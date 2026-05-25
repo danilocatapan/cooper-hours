@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Upload, AlertCircle, CheckCircle2, TrendingUp, Info } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -13,12 +14,23 @@ interface DailySummary {
   date: string;
   activities: Activity[];
   totalHours: number;
+  isBusinessDay: boolean;
+  isMissing: boolean;
 }
 
 interface TimesheetReport {
   dailySummaries: DailySummary[];
   overallTotalHours: number;
   ignoredLineCount: number;
+  duplicateLineCount: number;
+  rawLineCount: number;
+  validLineCount: number;
+  importedDayCount: number;
+  importedMonth: string;
+  userName: string | null;
+  businessDayCount: number;
+  missingBusinessDays: string[];
+  weekendOrExtraDays: string[];
 }
 
 type DailyStatus = "complete" | "pending" | "over";
@@ -104,6 +116,38 @@ export default function Home() {
     return difference < 0 ? "pending" : "over";
   };
 
+  const isBusinessDay = (date: string) => {
+    const dayOfWeek = new Date(`${date}T00:00:00`).getDay();
+    return dayOfWeek >= 1 && dayOfWeek <= 5;
+  };
+
+  const getBusinessDaysForMonth = (month: string) => {
+    const [year, monthNumber] = month.split("-").map(Number);
+    const daysInMonth = new Date(year, monthNumber, 0).getDate();
+    const businessDays: string[] = [];
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = `${month}-${String(day).padStart(2, "0")}`;
+      if (isBusinessDay(date)) businessDays.push(date);
+    }
+
+    return businessDays;
+  };
+
+  const getCalendarCellsForMonth = (month: string) => {
+    const [year, monthNumber] = month.split("-").map(Number);
+    const daysInMonth = new Date(year, monthNumber, 0).getDate();
+    const firstDay = new Date(`${month}-01T00:00:00`).getDay();
+    const leadingEmptyCells = (firstDay + 6) % 7;
+    const cells: Array<string | null> = Array.from({ length: leadingEmptyCells }, () => null);
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      cells.push(`${month}-${String(day).padStart(2, "0")}`);
+    }
+
+    return cells;
+  };
+
   const processCsv = (csvText: string): TimesheetReport => {
     const lines = csvText.split("\n").map((line) => line.trim()).filter((line) => line.length > 0);
     if (lines.length === 0) throw new Error("CSV vazio");
@@ -115,6 +159,8 @@ export default function Home() {
     const titleIdx = findHeaderIndex(headers, "Título", "Titulo");
     const dataIdx = findHeaderIndex(headers, "Data");
     const tempoIdx = findHeaderIndex(headers, "Tempo registrado soma", "Tempo");
+    const userIdx = findHeaderIndex(headers, "Usuário", "Usuario");
+    const cardIdx = findHeaderIndex(headers, "ID do cartão", "ID do cartao", "ID", "Cartão", "Cartao");
 
     if (titleIdx === -1 || dataIdx === -1 || tempoIdx === -1) {
       throw new Error("Colunas obrigatórias não encontradas (Título, Data, Tempo registrado soma)");
@@ -122,8 +168,12 @@ export default function Home() {
 
     const dailySummaries: Map<string, DailySummary> = new Map();
     const importedMonths: Set<string> = new Set();
+    const importedUsers: Set<string> = new Set();
+    const duplicateKeys: Set<string> = new Set();
     let overallTotalHours = 0;
     let ignoredLineCount = 0;
+    let duplicateLineCount = 0;
+    let validLineCount = 0;
 
     for (let i = 1; i < lines.length; i++) {
       const line = lines[i];
@@ -140,6 +190,8 @@ export default function Home() {
         const date = cols[dataIdx]?.trim();
         const title = cols[titleIdx]?.trim();
         const hours = parseNumber(cols[tempoIdx]);
+        const user = userIdx >= 0 ? cols[userIdx]?.trim() : "";
+        const cardId = cardIdx >= 0 ? cols[cardIdx]?.trim() : "";
 
         if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
           ignoredLineCount++;
@@ -152,12 +204,22 @@ export default function Home() {
         }
 
         importedMonths.add(date.slice(0, 7));
+        if (user) importedUsers.add(user);
+
+        const duplicateKey = [date, cardId, title, hours.toFixed(3)].join("|").toLowerCase();
+        if (duplicateKeys.has(duplicateKey)) {
+          duplicateLineCount++;
+          continue;
+        }
+        duplicateKeys.add(duplicateKey);
 
         if (!dailySummaries.has(date)) {
           dailySummaries.set(date, {
             date,
             activities: [],
             totalHours: 0,
+            isBusinessDay: isBusinessDay(date),
+            isMissing: false,
           });
         }
 
@@ -165,6 +227,7 @@ export default function Home() {
         summary.activities.push({ title, hours });
         summary.totalHours += hours;
         overallTotalHours += hours;
+        validLineCount++;
       } catch (e) {
         console.error(`Erro ao processar linha: ${line}`, e);
         ignoredLineCount++;
@@ -175,9 +238,30 @@ export default function Home() {
       throw new Error("O arquivo contém registros de mais de um mês. Envie um CSV com apenas um mês por importação.");
     }
 
+    if (importedUsers.size > 1) {
+      throw new Error("O arquivo contém registros de mais de um usuário. Envie um CSV individual por importação.");
+    }
+
     if (dailySummaries.size === 0) {
       throw new Error("Nenhum registro válido encontrado no arquivo");
     }
+
+    const importedMonth = Array.from(importedMonths)[0];
+    const businessDays = getBusinessDaysForMonth(importedMonth);
+    const missingBusinessDays = businessDays.filter((date) => !dailySummaries.has(date));
+    const weekendOrExtraDays = Array.from(dailySummaries.values())
+      .filter((summary) => !summary.isBusinessDay)
+      .map((summary) => summary.date);
+
+    missingBusinessDays.forEach((date) => {
+      dailySummaries.set(date, {
+        date,
+        activities: [],
+        totalHours: 0,
+        isBusinessDay: true,
+        isMissing: true,
+      });
+    });
 
     const sortedSummaries = Array.from(dailySummaries.values())
       .sort((a, b) => b.date.localeCompare(a.date))
@@ -190,6 +274,15 @@ export default function Home() {
       dailySummaries: sortedSummaries,
       overallTotalHours,
       ignoredLineCount,
+      duplicateLineCount,
+      rawLineCount: lines.length - 1,
+      validLineCount,
+      importedDayCount: dailySummaries.size - missingBusinessDays.length,
+      importedMonth,
+      userName: importedUsers.size === 1 ? Array.from(importedUsers)[0] : null,
+      businessDayCount: businessDays.length,
+      missingBusinessDays,
+      weekendOrExtraDays,
     };
   };
 
@@ -204,7 +297,11 @@ export default function Home() {
         const csvText = e.target?.result as string;
         const processedReport = processCsv(csvText);
         setReport(processedReport);
-        setSelectedDate(processedReport.dailySummaries[0]?.date ?? null);
+        setSelectedDate(
+          processedReport.dailySummaries.find((summary) => !summary.isMissing)?.date
+          ?? processedReport.dailySummaries[0]?.date
+          ?? null
+        );
       } catch (err) {
         setError(err instanceof Error ? err.message : "Erro ao processar arquivo");
         setReport(null);
@@ -267,25 +364,62 @@ export default function Home() {
     return new Date(`${date}T00:00:00`).toLocaleDateString("pt-BR", options);
   };
 
+  const downloadReportCsv = () => {
+    if (!report) return;
+
+    const rows = [
+      ["Data", "Dia util", "Total lancado", "Status", "Atividades"],
+      ...report.dailySummaries
+        .slice()
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .map((summary) => [
+          summary.date,
+          summary.isBusinessDay ? "sim" : "nao",
+          summary.totalHours.toFixed(1),
+          getStatusLabel(summary),
+          summary.activities.map((activity) => `${activity.title} (${activity.hours.toFixed(1)}h)`).join(" | "),
+        ]),
+    ];
+
+    const csv = rows
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, "\"\"")}"`).join(";"))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `validacao-8h-${report.importedMonth}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const logoSrc = `${import.meta.env.BASE_URL}assets/coopersystem-logo.svg`;
 
   const reportStats = useMemo(() => {
     if (!report) return null;
 
-    const completeDays = report.dailySummaries.filter((summary) => getDailyStatus(summary.totalHours) === "complete").length;
-    const pendingDays = report.dailySummaries.filter((summary) => getDailyStatus(summary.totalHours) === "pending").length;
-    const overDays = report.dailySummaries.filter((summary) => getDailyStatus(summary.totalHours) === "over").length;
-    const expectedTotalHours = report.dailySummaries.length * DAILY_TARGET_HOURS;
+    const expectedSummaries = report.dailySummaries.filter((summary) => summary.isBusinessDay);
+    const completeDays = expectedSummaries.filter((summary) => getDailyStatus(summary.totalHours) === "complete").length;
+    const pendingDays = expectedSummaries.filter((summary) => getDailyStatus(summary.totalHours) === "pending").length;
+    const overDays = expectedSummaries.filter((summary) => getDailyStatus(summary.totalHours) === "over").length;
+    const expectedTotalHours = report.businessDayCount * DAILY_TARGET_HOURS;
 
     return {
       completeDays,
       pendingDays,
       overDays,
       expectedTotalHours,
+      expectedSummaries,
     };
   }, [report]);
 
   const selectedSummary = report?.dailySummaries.find((summary) => summary.date === selectedDate) ?? report?.dailySummaries[0];
+  const summaryByDate = useMemo(() => {
+    return new Map(report?.dailySummaries.map((summary) => [summary.date, summary]) ?? []);
+  }, [report]);
+  const calendarCells = useMemo(() => {
+    return report ? getCalendarCellsForMonth(report.importedMonth) : [];
+  }, [report]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -364,7 +498,7 @@ export default function Home() {
                     <div className="bg-[#00D084]/10 border border-[#00D084]/30 rounded-lg p-4">
                       <p className="text-sm font-medium text-[#00D084]">Arquivo analisado com sucesso</p>
                       <p className="text-xs text-[#00D084]/80 mt-1">
-                        {reportStats.completeDays} de {report.dailySummaries.length} dias com 8h completas
+                        {reportStats.completeDays} de {report.businessDayCount} dias úteis com 8h completas
                       </p>
                     </div>
                   )}
@@ -374,6 +508,15 @@ export default function Home() {
                       <AlertCircle className="h-4 w-4" />
                       <AlertDescription>
                         {report.ignoredLineCount} linha(s) foram ignoradas por data inválida, horas zeradas ou campos obrigatórios ausentes.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {report && report.duplicateLineCount > 0 && (
+                    <Alert className="border-[#FFB020]/40 bg-[#FFB020]/10 text-[#FFB020]">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        {report.duplicateLineCount} registro(s) duplicado(s) foram desconsiderados para não inflar o total de horas.
                       </AlertDescription>
                     </Alert>
                   )}
@@ -420,7 +563,7 @@ Danilo	987605	[313-Maestro] Refinamento	"#inic0004688,#bbseg"	2026-04-01	2.000`}
                   <CardHeader>
                     <CardTitle className="text-lg text-foreground">Conferência do período</CardTitle>
                     <CardDescription>
-                      {reportStats.completeDays}/{report.dailySummaries.length} dias fechados com 8h.
+                      {reportStats.completeDays}/{report.businessDayCount} dias úteis fechados com 8h.
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -444,6 +587,52 @@ Danilo	987605	[313-Maestro] Refinamento	"#inic0004688,#bbseg"	2026-04-01	2.000`}
                         </p>
                       </div>
                     </div>
+
+                    <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                      <div className="rounded-lg border border-border bg-[#1a2332]/50 p-3">
+                        <p className="text-muted-foreground">Resumo da importação</p>
+                        <p className="mt-1 text-foreground">
+                          {report.validLineCount} de {report.rawLineCount} linhas válidas
+                          {report.userName ? ` para ${report.userName}` : ""} em {report.importedMonth}.
+                        </p>
+                      </div>
+                      <div className="rounded-lg border border-border bg-[#1a2332]/50 p-3">
+                        <p className="text-muted-foreground">Dias úteis ausentes</p>
+                        <p className="mt-1 text-foreground">
+                          {report.missingBusinessDays.length === 0
+                            ? "Nenhum dia útil ausente no mês."
+                            : `${report.missingBusinessDays.length} dia(s) sem lançamento.`}
+                        </p>
+                      </div>
+                    </div>
+
+                    {report.missingBusinessDays.length > 0 && (
+                      <Alert className="mt-4 border-[#FF6B5B]/30 bg-[#FF6B5B]/10 text-[#FF6B5B]">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription>
+                          {report.missingBusinessDays.length} dia(s) úteis estão sem lançamento. Eles aparecem em vermelho na grade mensal abaixo.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+
+                    {report.weekendOrExtraDays.length > 0 && (
+                      <Alert className="mt-4 border-[#FFB020]/40 bg-[#FFB020]/10 text-[#FFB020]">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription>
+                          {report.weekendOrExtraDays.length} sábado/domingo foram importados e exibidos como hora extra, mas não entram na meta obrigatória de dias úteis.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="mt-4 w-full sm:w-auto"
+                      onClick={downloadReportCsv}
+                    >
+                      Baixar relatório CSV
+                    </Button>
                   </CardContent>
                 </Card>
 
@@ -453,35 +642,65 @@ Danilo	987605	[313-Maestro] Refinamento	"#inic0004688,#bbseg"	2026-04-01	2.000`}
                     <CardDescription>Selecione qualquer dia para revisar total e atividades.</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-1 lg:grid-cols-[minmax(220px,260px)_1fr] gap-4">
-                      <div className="space-y-2 max-h-96 overflow-y-auto pr-1" aria-label="Lista de dias carregados">
-                        {report.dailySummaries.map((summary) => {
-                          const status = getDailyStatus(summary.totalHours);
-                          const isSelected = selectedSummary?.date === summary.date;
+                    <div className="space-y-4">
+                      <div aria-label="Calendário do mês importado">
+                        <div className="grid grid-cols-7 gap-2 text-center text-xs font-medium text-muted-foreground">
+                          {["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"].map((weekday) => (
+                            <span key={weekday}>{weekday}</span>
+                          ))}
+                        </div>
+                        <div className="mt-2 grid grid-cols-7 gap-2">
+                          {calendarCells.map((date, idx) => {
+                            if (!date) return <div key={`empty-${idx}`} className="min-h-16" />;
 
-                          return (
-                            <button
-                              key={summary.date}
-                              type="button"
-                              onClick={() => setSelectedDate(summary.date)}
-                              className={`w-full text-left rounded-lg border p-3 transition-colors ${
-                                isSelected
-                                  ? "border-primary bg-[#00D084]/10"
-                                  : "border-border bg-[#1a2332]/50 hover:bg-[#3a4a5f]/50"
-                              }`}
-                              aria-pressed={isSelected}
-                            >
-                              <div className="flex items-center justify-between gap-3">
-                                <span className="text-sm font-semibold text-foreground">{formatLocalDate(summary.date)}</span>
-                                {getStatusIcon(status)}
-                              </div>
-                              <p className="mt-1 text-xs text-muted-foreground">{summary.totalHours.toFixed(1)}h lançadas</p>
-                              <p className={`mt-2 inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${getStatusClass(status)}`}>
-                                {getStatusLabel(summary)}
-                              </p>
-                            </button>
-                          );
-                        })}
+                            const summary = summaryByDate.get(date);
+                            const dayNumber = Number(date.slice(-2));
+                            const isWeekend = !isBusinessDay(date);
+                            const isSelected = selectedSummary?.date === date;
+
+                            if (!summary) {
+                              return (
+                                <div
+                                  key={date}
+                                  className="min-h-16 rounded-lg border border-border/60 bg-[#1a2332]/30 p-2 text-left opacity-60"
+                                >
+                                  <p className="text-sm font-semibold text-muted-foreground">{dayNumber}</p>
+                                  {isWeekend && <p className="mt-1 text-[11px] text-muted-foreground">opcional</p>}
+                                </div>
+                              );
+                            }
+
+                            const status = getDailyStatus(summary.totalHours);
+
+                            return (
+                              <button
+                                key={date}
+                                type="button"
+                                onClick={() => setSelectedDate(date)}
+                                aria-label={`${formatLocalDate(date)} ${summary.totalHours.toFixed(1)}h ${summary.isMissing ? "ausente" : summary.isBusinessDay ? "dia útil" : "hora extra"}`}
+                                className={`min-h-16 rounded-lg border p-2 text-left transition-colors ${
+                                  isSelected
+                                    ? "border-primary bg-[#00D084]/10"
+                                    : summary.isMissing
+                                      ? "border-[#FF6B5B]/30 bg-[#FF6B5B]/10 hover:bg-[#FF6B5B]/15"
+                                      : !summary.isBusinessDay
+                                        ? "border-[#FFB020]/40 bg-[#FFB020]/10 hover:bg-[#FFB020]/15"
+                                        : "border-border bg-[#1a2332]/50 hover:bg-[#3a4a5f]/50"
+                                }`}
+                                aria-pressed={isSelected}
+                              >
+                                <div className="flex items-center justify-between gap-1">
+                                  <span className="text-sm font-semibold text-foreground">{dayNumber}</span>
+                                  {getStatusIcon(status)}
+                                </div>
+                                <p className="mt-1 text-xs text-muted-foreground">{summary.totalHours.toFixed(1)}h</p>
+                                <p className={`mt-1 w-fit rounded-full border px-1.5 py-0.5 text-[11px] font-medium ${getStatusClass(status)}`}>
+                                  {summary.isMissing ? "ausente" : summary.isBusinessDay ? "dia útil" : "extra"}
+                                </p>
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
 
                       {selectedSummary && (
@@ -499,6 +718,12 @@ Danilo	987605	[313-Maestro] Refinamento	"#inic0004688,#bbseg"	2026-04-01	2.000`}
                               <p className="mt-1 text-sm text-muted-foreground">
                                 {selectedSummary.totalHours.toFixed(1)}h lançadas de {DAILY_TARGET_HOURS.toFixed(1)}h esperadas.
                               </p>
+                              {selectedSummary.isMissing && (
+                                <p className="mt-1 text-sm text-[#FF6B5B]">Sem registro no CSV.</p>
+                              )}
+                              {!selectedSummary.isBusinessDay && (
+                                <p className="mt-1 text-sm text-[#FFB020]">Hora extra, não obrigatória.</p>
+                              )}
                             </div>
                             <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                               {getStatusIcon(getDailyStatus(selectedSummary.totalHours))}
@@ -508,23 +733,31 @@ Danilo	987605	[313-Maestro] Refinamento	"#inic0004688,#bbseg"	2026-04-01	2.000`}
 
                           {getDailyStatus(selectedSummary.totalHours) !== "complete" && (
                             <p className="mt-4 rounded-lg bg-[#1a2332]/60 p-3 text-sm text-muted-foreground">
-                              Revise este dia no BusinessMap e exporte novamente o CSV após corrigir o lançamento.
+                              {selectedSummary.isMissing
+                                ? "Inclua este dia no BusinessMap e exporte novamente o CSV após corrigir o lançamento."
+                                : "Revise este dia no BusinessMap e exporte novamente o CSV após corrigir o lançamento."}
                             </p>
                           )}
 
                           <div className="mt-4 space-y-3">
-                            {selectedSummary.activities.map((activity, actIdx) => (
-                              <div key={actIdx} className="flex items-start justify-between gap-4 rounded-lg border border-border bg-[#2a3a4f] p-3">
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium text-foreground">{activity.title}</p>
+                            {selectedSummary.activities.length > 0 ? (
+                              selectedSummary.activities.map((activity, actIdx) => (
+                                <div key={actIdx} className="flex items-start justify-between gap-4 rounded-lg border border-border bg-[#2a3a4f] p-3">
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium text-foreground">{activity.title}</p>
+                                  </div>
+                                  <div className="flex-shrink-0">
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-[#00D084]/20 text-[#00D084]">
+                                      {activity.hours.toFixed(1)}h
+                                    </span>
+                                  </div>
                                 </div>
-                                <div className="flex-shrink-0">
-                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-[#00D084]/20 text-[#00D084]">
-                                    {activity.hours.toFixed(1)}h
-                                  </span>
-                                </div>
+                              ))
+                            ) : (
+                              <div className="rounded-lg border border-border bg-[#2a3a4f] p-3 text-sm text-muted-foreground">
+                                Nenhuma atividade encontrada para este dia.
                               </div>
-                            ))}
+                            )}
                           </div>
                         </div>
                       )}
