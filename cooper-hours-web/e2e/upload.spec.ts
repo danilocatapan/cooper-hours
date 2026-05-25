@@ -104,10 +104,10 @@ test('create tasks tab generates the exact batch JSON contract', async ({ page }
   expect(json.tasks.map((task: { subject: string }) => task.subject).sort()).toEqual(['Tarefa API', 'Tarefa UI']);
 });
 
-test('time entries tab generates the exact array JSON contract', async ({ page }) => {
+test('time entries tab maps Cecis issue ids and generates the manual array JSON contract', async ({ page }) => {
   const csv = buildCsv([
-    'Danilo\t893566\tTarefa API\t"tag"\t2026-04-14\t2.000',
-    'Danilo\t987589\tTarefa UI\t"tag"\t2026-04-15\t6.000',
+    'Danilo\t893566\tMaestro-Refinamentos S2-Abr\t"tag"\t2026-04-14\t2.000',
+    'Danilo\t987589\tMaestro-Ritos (Daily, Planning, Review e Retro) S2-Abr\t"tag"\t2026-04-15\t6.000',
   ]);
 
   await page.locator('input[type="file"]').setInputFiles({
@@ -119,11 +119,24 @@ test('time entries tab generates the exact array JSON contract', async ({ page }
   await expect(page.getByRole('tab', { name: /Registrar Tempo/i })).toBeVisible();
   await page.getByRole('tab', { name: /Registrar Tempo/i }).click();
 
+  await expect(page.getByText('tarefa(s) pendente(s)')).toBeVisible();
+  await expect(page.getByTestId('time-entries-json')).toHaveText(/\[\]/);
+
+  await page.getByTestId('cecis-response').fill([
+    'Tarefas criadas com sucesso — 2 issues:',
+    'ID 291631 — Maestro-Refinamentos S2-Abr — tracker: Análise e Refinamento (12)',
+    'ID 291632 — Maestro-Ritos (Daily, Planning, Review e Retro) S2-Abr — tracker: Reuniões (21)',
+  ].join('\n'));
+  await page.getByRole('button', { name: /Mapear IDs/i }).click();
+
+  await expect(page.getByText('issue_id 291631')).toBeVisible();
+  await expect(page.getByText('issue_id 291632')).toBeVisible();
+
   const jsonText = await page.getByTestId('time-entries-json').textContent();
   const json = JSON.parse(jsonText || '');
 
   expect(Array.isArray(json)).toBeTruthy();
-  expect(json).toHaveLength(1);
+  expect(json).toHaveLength(2);
   expect(Object.keys(json[0])).toEqual([
     'issue_id',
     'hours',
@@ -131,13 +144,52 @@ test('time entries tab generates the exact array JSON contract', async ({ page }
     'activity_id',
     'comments',
   ]);
-  expect(json[0]).toEqual({
-    issue_id: 289825,
+  expect(json).toEqual(expect.arrayContaining([
+    {
+      issue_id: 291631,
+      hours: 2,
+      spent_on: '2026-04-14',
+      activity_id: 20,
+      comments: '',
+    },
+    {
+      issue_id: 291632,
+      hours: 6,
+      spent_on: '2026-04-15',
+      activity_id: 10,
+      comments: '',
+    },
+  ]));
+});
+
+test('time entries JSON excludes tasks that were not mapped by Cecis', async ({ page }) => {
+  const csv = buildCsv([
+    'Danilo\t893566\tTarefa Mapeada\t"tag"\t2026-04-14\t2.000',
+    'Danilo\t987589\tTarefa Pendente\t"tag"\t2026-04-15\t6.000',
+  ]);
+
+  await page.locator('input[type="file"]').setInputFiles({
+    name: 'partial-cecis-map.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from(csv, 'utf8'),
+  });
+
+  await page.getByRole('tab', { name: /Registrar Tempo/i }).click();
+  await page.getByTestId('cecis-response').fill('ID 291700 — Tarefa Mapeada — tracker: Manutenção (5)');
+  await page.getByRole('button', { name: /Mapear IDs/i }).click();
+
+  await expect(page.getByText(/Pendentes de issue_id: Tarefa Pendente/i)).toBeVisible();
+
+  const jsonText = await page.getByTestId('time-entries-json').textContent();
+  const json = JSON.parse(jsonText || '');
+
+  expect(json).toEqual([{
+    issue_id: 291700,
     hours: 2,
     spent_on: '2026-04-14',
-    activity_id: 20,
+    activity_id: 9,
     comments: '',
-  });
+  }]);
 });
 
 test('all days remain navigable when CSV has more than five days', async ({ page }) => {

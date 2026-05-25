@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, AlertCircle, CheckCircle2, TrendingUp, Info, ClipboardList, Clock3, Copy, Plus, Trash2, FileJson } from "lucide-react";
+import { Upload, AlertCircle, CheckCircle2, TrendingUp, Info, ClipboardList, Clock3, Copy, FileJson, Link2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -54,11 +54,15 @@ interface TaskDefaults {
   description: string;
 }
 
-interface TimeEntryForm {
-  hours: string;
-  spentOn: string;
+interface TaskConfig {
+  trackerId: string;
   activityId: string;
-  comments: string;
+  issueId: string;
+}
+
+interface ParsedIssue {
+  issueId: string;
+  title: string;
 }
 
 type DailyStatus = "complete" | "pending" | "over";
@@ -78,9 +82,6 @@ const DEFAULT_TASKS: TaskDefaults = {
   description: "Detalhes...",
 };
 
-const DEFAULT_ISSUE_ID = "289825";
-const DEFAULT_ACTIVITY_ID = "20";
-
 const trackerOptions = [
   { value: "5", label: "Desenvolvimento" },
   { value: "21", label: "Reuniões" },
@@ -93,6 +94,30 @@ const activityOptions = [
   { value: "20", label: "Análise e Refinamento" },
 ];
 
+function normalizeTitle(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+const getDefaultTaskConfig = (title: string): TaskConfig => {
+  const normalized = normalizeTitle(title);
+
+  if (normalized.match(/\b(rito|daily|planning|review|retro|reuniao|reunioes)\b/)) {
+    return { trackerId: "21", activityId: "10", issueId: "" };
+  }
+
+  if (normalized.match(/\b(refinamento|refinamentos|analise|analises)\b/)) {
+    return { trackerId: "12", activityId: "20", issueId: "" };
+  }
+
+  return { trackerId: "5", activityId: "9", issueId: "" };
+};
+
 export default function Home() {
   const [report, setReport] = useState<TimesheetReport | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -101,11 +126,9 @@ export default function Home() {
   const [isDragging, setIsDragging] = useState(false);
   const [activeResultTab, setActiveResultTab] = useState("conference");
   const [taskDefaults, setTaskDefaults] = useState<TaskDefaults>(DEFAULT_TASKS);
-  const [selectedCardId, setSelectedCardId] = useState("");
-  const [issueId, setIssueId] = useState(DEFAULT_ISSUE_ID);
-  const [defaultActivityId, setDefaultActivityId] = useState(DEFAULT_ACTIVITY_ID);
-  const [timeEntries, setTimeEntries] = useState<TimeEntryForm[]>([]);
   const [copiedTarget, setCopiedTarget] = useState<CopiedTarget>(null);
+  const [taskConfigs, setTaskConfigs] = useState<Record<string, TaskConfig>>({});
+  const [cecisResponseText, setCecisResponseText] = useState("");
 
   const parseNumber = (numberStr: string): number => {
     if (!numberStr || numberStr.trim() === "") return 0.0;
@@ -361,35 +384,18 @@ export default function Home() {
     };
   };
 
-  const buildTimeEntriesForCard = (sourceReport: TimesheetReport, cardId: string, activityId: string): TimeEntryForm[] => {
-    if (!cardId) return [];
-
-    return sourceReport.dailySummaries
-      .filter((summary) => !summary.isMissing)
-      .flatMap((summary) =>
-        summary.activities
-          .filter((activity) => activity.cardId === cardId)
-          .map((activity) => ({
-            hours: activity.hours.toString(),
-            spentOn: summary.date,
-            activityId,
-            comments: "",
-          }))
-      );
-  };
-
   const processFile = (file: File) => {
     setIsLoading(true);
     setError(null);
     setIsDragging(false);
     setCopiedTarget(null);
+    setCecisResponseText("");
 
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
         const csvText = e.target?.result as string;
         const processedReport = processCsv(csvText);
-        const initialCardId = processedReport.cardIds[0] ?? "";
 
         setReport(processedReport);
         setSelectedDate(
@@ -403,16 +409,10 @@ export default function Home() {
           startDate: processedReport.minImportedDate,
           dueDate: processedReport.maxImportedDate,
         });
-        setSelectedCardId(initialCardId);
-        setIssueId(DEFAULT_ISSUE_ID);
-        setDefaultActivityId(DEFAULT_ACTIVITY_ID);
-        setTimeEntries(initialCardId ? buildTimeEntriesForCard(processedReport, initialCardId, DEFAULT_ACTIVITY_ID) : []);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Erro ao processar arquivo");
         setReport(null);
         setSelectedDate(null);
-        setSelectedCardId("");
-        setTimeEntries([]);
       } finally {
         setIsLoading(false);
       }
@@ -422,8 +422,6 @@ export default function Home() {
       setIsLoading(false);
       setReport(null);
       setSelectedDate(null);
-      setSelectedCardId("");
-      setTimeEntries([]);
     };
     reader.readAsText(file);
   };
@@ -506,40 +504,50 @@ export default function Home() {
     setTaskDefaults((current) => ({ ...current, [key]: value }));
   };
 
-  const handleCardChange = (cardId: string) => {
-    setSelectedCardId(cardId);
-    if (!report) {
-      setTimeEntries([]);
-      return;
-    }
-    setTimeEntries(buildTimeEntriesForCard(report, cardId, defaultActivityId));
-  };
-
-  const handleDefaultActivityChange = (activityId: string) => {
-    setDefaultActivityId(activityId);
-    setTimeEntries((current) => current.map((entry) => ({ ...entry, activityId })));
-  };
-
-  const updateTimeEntry = (index: number, key: keyof TimeEntryForm, value: string) => {
-    setTimeEntries((current) => current.map((entry, entryIndex) => (
-      entryIndex === index ? { ...entry, [key]: value } : entry
-    )));
-  };
-
-  const addTimeEntry = () => {
-    setTimeEntries((current) => [
+  const updateTaskConfig = (title: string, key: keyof TaskConfig, value: string) => {
+    setTaskConfigs((current) => ({
       ...current,
-      {
-        hours: "1",
-        spentOn: report?.maxImportedDate ?? new Date().toISOString().slice(0, 10),
-        activityId: defaultActivityId,
-        comments: "",
+      [title]: {
+        ...(current[title] ?? getDefaultTaskConfig(title)),
+        [key]: value,
       },
-    ]);
+    }));
   };
 
-  const removeTimeEntry = (index: number) => {
-    setTimeEntries((current) => current.filter((_, entryIndex) => entryIndex !== index));
+  const parseCecisIssues = (text: string): ParsedIssue[] => {
+    const matches = Array.from(text.matchAll(/ID\s+(\d+)\s*[—–-]\s*([^•\n\r]+?)(?=\s*[—–-]\s*(?:tracker|assigned_to|fixed_version|status|start|due)\b|$|•)/gi));
+    return matches.map((match) => ({
+      issueId: match[1],
+      title: match[2].trim(),
+    }));
+  };
+
+  const findTaskTitleForParsedIssue = (parsedTitle: string) => {
+    const normalizedParsedTitle = normalizeTitle(parsedTitle);
+    return uniqueTaskTitles.find((title) => normalizeTitle(title) === normalizedParsedTitle)
+      ?? uniqueTaskTitles.find((title) => {
+        const normalizedTaskTitle = normalizeTitle(title);
+        return normalizedTaskTitle.includes(normalizedParsedTitle) || normalizedParsedTitle.includes(normalizedTaskTitle);
+      });
+  };
+
+  const applyCecisResponse = () => {
+    const parsedIssues = parseCecisIssues(cecisResponseText);
+    setTaskConfigs((current) => {
+      const next = { ...current };
+
+      parsedIssues.forEach((issue) => {
+        const matchingTitle = findTaskTitleForParsedIssue(issue.title);
+        if (!matchingTitle) return;
+
+        next[matchingTitle] = {
+          ...(next[matchingTitle] ?? getDefaultTaskConfig(matchingTitle)),
+          issueId: issue.issueId,
+        };
+      });
+
+      return next;
+    });
   };
 
   const copyJson = async (jsonText: string, target: Exclude<CopiedTarget, null>) => {
@@ -577,12 +585,22 @@ export default function Home() {
     return Array.from(titles).sort((a, b) => a.localeCompare(b));
   }, [report]);
 
+  useEffect(() => {
+    setTaskConfigs((current) => {
+      const next: Record<string, TaskConfig> = {};
+      uniqueTaskTitles.forEach((title) => {
+        next[title] = current[title] ?? getDefaultTaskConfig(title);
+      });
+      return next;
+    });
+  }, [uniqueTaskTitles]);
+
   const tasksJsonText = useMemo(() => {
     const tasks = uniqueTaskTitles.map((title) => ({
       subject: title,
       project_id: parseInteger(taskDefaults.projectId),
       assigned_to_id: parseInteger(taskDefaults.assignedToId),
-      tracker_id: parseInteger(taskDefaults.trackerId),
+      tracker_id: parseInteger(taskConfigs[title]?.trackerId ?? taskDefaults.trackerId),
       start_date: taskDefaults.startDate,
       due_date: taskDefaults.dueDate,
       status_id: parseInteger(taskDefaults.statusId),
@@ -591,19 +609,57 @@ export default function Home() {
     }));
 
     return JSON.stringify({ action: "create_tasks_batch", tasks }, null, 2);
-  }, [taskDefaults, uniqueTaskTitles]);
+  }, [taskConfigs, taskDefaults, uniqueTaskTitles]);
+
+  const timeEntries = useMemo(() => {
+    if (!report) return [];
+
+    return report.dailySummaries
+      .filter((summary) => !summary.isMissing)
+      .flatMap((summary) =>
+        summary.activities.map((activity) => {
+          const config = taskConfigs[activity.title] ?? getDefaultTaskConfig(activity.title);
+          return {
+            issue_id: parseInteger(config.issueId),
+            hours: activity.hours,
+            spent_on: summary.date,
+            activity_id: parseInteger(config.activityId),
+            comments: "",
+            title: activity.title,
+          };
+        })
+      );
+  }, [report, taskConfigs]);
+
+  const readyTimeEntries = useMemo(() => {
+    return timeEntries
+      .filter((entry) => entry.issue_id > 0 && entry.activity_id > 0)
+      .map(({ title: _title, ...entry }) => entry);
+  }, [timeEntries]);
+
+  const pendingTimeEntryTitles = useMemo(() => {
+    const pending = new Set<string>();
+    timeEntries.forEach((entry) => {
+      if (entry.issue_id <= 0 || entry.activity_id <= 0) pending.add(entry.title);
+    });
+    return Array.from(pending).sort((a, b) => a.localeCompare(b));
+  }, [timeEntries]);
+
+  const conflictTaskTitles = useMemo(() => {
+    const counts = new Map<string, number>();
+    parseCecisIssues(cecisResponseText).forEach((issue) => {
+      const matchingTitle = findTaskTitleForParsedIssue(issue.title);
+      if (!matchingTitle) return;
+      counts.set(matchingTitle, (counts.get(matchingTitle) ?? 0) + 1);
+    });
+    return Array.from(counts.entries())
+      .filter(([, count]) => count > 1)
+      .map(([title]) => title);
+  }, [cecisResponseText, uniqueTaskTitles]);
 
   const timeEntriesJsonText = useMemo(() => {
-    const entries = timeEntries.map((entry) => ({
-      issue_id: parseInteger(issueId),
-      hours: parseNumber(entry.hours),
-      spent_on: entry.spentOn,
-      activity_id: parseInteger(entry.activityId),
-      comments: entry.comments,
-    }));
-
-    return JSON.stringify(entries, null, 2);
-  }, [issueId, parseNumber, timeEntries]);
+    return JSON.stringify(readyTimeEntries, null, 2);
+  }, [readyTimeEntries]);
 
   const selectedSummary = report?.dailySummaries.find((summary) => summary.date === selectedDate) ?? report?.dailySummaries[0];
   const summaryByDate = useMemo(() => {
@@ -999,19 +1055,6 @@ Danilo	987605	[313-Maestro] Refinamento	"#inic0004688,#bbseg"	2026-04-01	2.000`}
                           <Input id="assigned-to-id" inputMode="numeric" value={taskDefaults.assignedToId} onChange={(event) => updateTaskDefault("assignedToId", event.target.value)} />
                         </div>
                         <div className="space-y-2">
-                          <Label>tracker_id</Label>
-                          <Select value={taskDefaults.trackerId} onValueChange={(value) => updateTaskDefault("trackerId", value)}>
-                            <SelectTrigger className="w-full">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {trackerOptions.map((option) => (
-                                <SelectItem key={option.value} value={option.value}>{option.label} ({option.value})</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
                           <Label htmlFor="start-date">start_date</Label>
                           <Input id="start-date" type="date" value={taskDefaults.startDate} onChange={(event) => updateTaskDefault("startDate", event.target.value)} />
                         </div>
@@ -1041,11 +1084,44 @@ Danilo	987605	[313-Maestro] Refinamento	"#inic0004688,#bbseg"	2026-04-01	2.000`}
                           </div>
                           <Badge variant="outline">{report.importedMonth}</Badge>
                         </div>
-                        <div className="flex flex-wrap gap-2">
+                        <div className="space-y-3">
                           {uniqueTaskTitles.map((title) => (
-                            <Badge key={title} variant="secondary" className="max-w-full whitespace-normal text-left">
-                              {title}
-                            </Badge>
+                            <div key={title} className="grid grid-cols-1 gap-3 rounded-lg border border-border bg-[#2a3a4f] p-3 lg:grid-cols-[minmax(0,1fr)_180px_180px_150px] lg:items-end">
+                              <div className="min-w-0">
+                                <Label className="text-xs text-muted-foreground">subject</Label>
+                                <p className="mt-1 text-sm font-medium text-foreground">{title}</p>
+                              </div>
+                              <div className="space-y-2">
+                                <Label>tracker_id</Label>
+                                <Select value={taskConfigs[title]?.trackerId ?? getDefaultTaskConfig(title).trackerId} onValueChange={(value) => updateTaskConfig(title, "trackerId", value)}>
+                                  <SelectTrigger className="w-full">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {trackerOptions.map((option) => (
+                                      <SelectItem key={option.value} value={option.value}>{option.label} ({option.value})</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="space-y-2">
+                                <Label>activity_id</Label>
+                                <Select value={taskConfigs[title]?.activityId ?? getDefaultTaskConfig(title).activityId} onValueChange={(value) => updateTaskConfig(title, "activityId", value)}>
+                                  <SelectTrigger className="w-full">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {activityOptions.map((option) => (
+                                      <SelectItem key={option.value} value={option.value}>{option.label} ({option.value})</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor={`issue-${normalizeTitle(title)}`}>issue_id</Label>
+                                <Input id={`issue-${normalizeTitle(title)}`} inputMode="numeric" placeholder="apÃ³s Cecis" value={taskConfigs[title]?.issueId ?? ""} onChange={(event) => updateTaskConfig(title, "issueId", event.target.value)} />
+                              </div>
+                            </div>
                           ))}
                         </div>
                       </div>
@@ -1057,7 +1133,7 @@ Danilo	987605	[313-Maestro] Refinamento	"#inic0004688,#bbseg"	2026-04-01	2.000`}
                       <div>
                         <CardTitle className="flex items-center gap-2 text-lg text-foreground">
                           <FileJson className="h-5 w-5 text-primary" />
-                          JSON para Redmine
+                          JSON para Cecis - Criar Tarefas
                         </CardTitle>
                         <CardDescription>Saída com contrato exato de criação de tarefas.</CardDescription>
                       </div>
@@ -1082,110 +1158,70 @@ Danilo	987605	[313-Maestro] Refinamento	"#inic0004688,#bbseg"	2026-04-01	2.000`}
                         Registrar Tempo
                       </CardTitle>
                       <CardDescription>
-                        Selecione um cartão do CSV e gere o array puro de time entries.
+                        Cole a resposta da Cecis para preencher os issue_id e gerar o JSON final de horas.
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-5">
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div className="space-y-2">
-                          <Label>ID do cartão</Label>
-                          <Select value={selectedCardId || "no-card"} onValueChange={(value) => handleCardChange(value === "no-card" ? "" : value)} disabled={report.cardIds.length === 0}>
-                            <SelectTrigger className="w-full">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {report.cardIds.length === 0 ? (
-                                <SelectItem value="no-card">Sem cartão no CSV</SelectItem>
-                              ) : (
-                                report.cardIds.map((cardId) => (
-                                  <SelectItem key={cardId} value={cardId}>Cartão {cardId}</SelectItem>
-                                ))
-                              )}
-                            </SelectContent>
-                          </Select>
+                      <div className="space-y-2">
+                        <Label htmlFor="cecis-response">Resposta da Cecis com as issues criadas</Label>
+                        <Textarea
+                          id="cecis-response"
+                          data-testid="cecis-response"
+                          value={cecisResponseText}
+                          onChange={(event) => setCecisResponseText(event.target.value)}
+                          placeholder="Ex.: ID 291631 — Maestro-Refinamentos S2-Abr — tracker..."
+                          className="min-h-32"
+                        />
+                        <Button type="button" size="sm" onClick={applyCecisResponse}>
+                          <Link2 className="h-4 w-4" />
+                          Mapear IDs
+                        </Button>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                        <div className="rounded-lg border border-[#00D084]/30 bg-[#00D084]/10 p-3">
+                          <p className="text-sm font-semibold text-[#00D084]">{readyTimeEntries.length}</p>
+                          <p className="text-xs text-muted-foreground">registro(s) prontos</p>
                         </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="issue-id">issue_id</Label>
-                          <Input id="issue-id" inputMode="numeric" value={issueId} onChange={(event) => setIssueId(event.target.value)} />
+                        <div className="rounded-lg border border-[#FFB020]/40 bg-[#FFB020]/10 p-3">
+                          <p className="text-sm font-semibold text-[#FFB020]">{pendingTimeEntryTitles.length}</p>
+                          <p className="text-xs text-muted-foreground">tarefa(s) pendente(s)</p>
                         </div>
-                        <div className="space-y-2">
-                          <Label>activity_id padrão</Label>
-                          <Select value={defaultActivityId} onValueChange={handleDefaultActivityChange}>
-                            <SelectTrigger className="w-full">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {activityOptions.map((option) => (
-                                <SelectItem key={option.value} value={option.value}>{option.label} ({option.value})</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                        <div className="rounded-lg border border-border bg-[#1a2332]/50 p-3">
+                          <p className="text-sm font-semibold text-foreground">{timeEntries.length}</p>
+                          <p className="text-xs text-muted-foreground">lançamento(s) no CSV</p>
                         </div>
                       </div>
 
-                      {report.cardIds.length === 0 ? (
+                      {pendingTimeEntryTitles.length > 0 ? (
                         <Alert className="border-[#FFB020]/40 bg-[#FFB020]/10 text-[#FFB020]">
                           <AlertCircle className="h-4 w-4" />
                           <AlertDescription>
-                            O CSV não trouxe ID do cartão. O JSON continua válido como array vazio até você adicionar registros manualmente.
+                            Pendentes de issue_id: {pendingTimeEntryTitles.join("; ")}
                           </AlertDescription>
                         </Alert>
                       ) : null}
 
-                      <div className="space-y-3">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                          <div>
-                            <p className="text-sm font-medium text-foreground">Registros de tempo</p>
-                            <p className="text-xs text-muted-foreground">{timeEntries.length} registro(s) no JSON.</p>
-                          </div>
-                          <Button type="button" size="sm" onClick={addTimeEntry}>
-                            <Plus className="h-4 w-4" />
-                            Adicionar Registro
-                          </Button>
-                        </div>
-
-                        {timeEntries.length === 0 ? (
-                          <div className="rounded-lg border border-dashed border-border bg-[#1a2332]/40 p-6 text-center text-sm text-muted-foreground">
-                            Nenhum registro carregado para este cartão.
-                          </div>
-                        ) : (
-                          <div className="space-y-3">
-                            {timeEntries.map((entry, index) => (
-                              <div key={`${entry.spentOn}-${index}`} className="rounded-lg border border-border bg-[#1a2332]/50 p-4">
-                                <div className="grid grid-cols-1 gap-3 md:grid-cols-[0.8fr_1fr_1.2fr_2fr_auto] md:items-end">
-                                  <div className="space-y-2">
-                                    <Label htmlFor={`hours-${index}`}>hours</Label>
-                                    <Input id={`hours-${index}`} inputMode="decimal" value={entry.hours} onChange={(event) => updateTimeEntry(index, "hours", event.target.value)} />
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label htmlFor={`spent-on-${index}`}>spent_on</Label>
-                                    <Input id={`spent-on-${index}`} type="date" value={entry.spentOn} onChange={(event) => updateTimeEntry(index, "spentOn", event.target.value)} />
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label>activity_id</Label>
-                                    <Select value={entry.activityId} onValueChange={(value) => updateTimeEntry(index, "activityId", value)}>
-                                      <SelectTrigger className="w-full">
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {activityOptions.map((option) => (
-                                          <SelectItem key={option.value} value={option.value}>{option.label} ({option.value})</SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label htmlFor={`comments-${index}`}>comments</Label>
-                                    <Input id={`comments-${index}`} value={entry.comments} onChange={(event) => updateTimeEntry(index, "comments", event.target.value)} />
-                                  </div>
-                                  <Button type="button" variant="outline" size="icon" aria-label="Remover registro" onClick={() => removeTimeEntry(index)}>
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
+                      <div className="rounded-lg border border-border bg-[#1a2332]/50 p-4">
+                        <p className="mb-3 text-sm font-medium text-foreground">Mapa de tarefas</p>
+                        <div className="space-y-2">
+                          {uniqueTaskTitles.map((title) => {
+                            const config = taskConfigs[title] ?? getDefaultTaskConfig(title);
+                            const isMapped = parseInteger(config.issueId) > 0;
+                            const hasConflict = conflictTaskTitles.includes(title);
+                            return (
+                              <div key={title} className="flex flex-col gap-2 rounded-lg border border-border bg-[#2a3a4f] p-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="min-w-0">
+                                  <p className="text-sm font-medium text-foreground">{title}</p>
+                                  <p className="text-xs text-muted-foreground">activity_id {config.activityId}</p>
                                 </div>
+                                <Badge className={hasConflict ? "bg-[#FF6B5B]/20 text-[#FF6B5B]" : isMapped ? "bg-[#00D084]/20 text-[#00D084]" : "bg-[#FFB020]/20 text-[#FFB020]"}>
+                                  {hasConflict ? "conflito" : isMapped ? `issue_id ${config.issueId}` : "pendente"}
+                                </Badge>
                               </div>
-                            ))}
-                          </div>
-                        )}
+                            );
+                          })}
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -1195,9 +1231,9 @@ Danilo	987605	[313-Maestro] Refinamento	"#inic0004688,#bbseg"	2026-04-01	2.000`}
                       <div>
                         <CardTitle className="flex items-center gap-2 text-lg text-foreground">
                           <FileJson className="h-5 w-5 text-primary" />
-                          JSON para Redmine - Time Entries
+                          JSON para Cecis - Time Entries
                         </CardTitle>
-                        <CardDescription>Saída como array raiz, sem wrapper.</CardDescription>
+                        <CardDescription>Saída manual com issue_id, spent_on e activity_id.</CardDescription>
                       </div>
                       <Button type="button" variant="outline" size="sm" onClick={() => copyJson(timeEntriesJsonText, "time")}>
                         <Copy className="h-4 w-4" />
