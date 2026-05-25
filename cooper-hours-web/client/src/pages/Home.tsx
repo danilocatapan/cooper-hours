@@ -1,9 +1,8 @@
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Upload, AlertCircle, CheckCircle2, TrendingUp, Info } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 interface Activity {
   title: string;
@@ -14,19 +13,25 @@ interface DailySummary {
   date: string;
   activities: Activity[];
   totalHours: number;
-  status: string;
 }
 
 interface TimesheetReport {
   dailySummaries: DailySummary[];
   overallTotalHours: number;
+  ignoredLineCount: number;
 }
+
+type DailyStatus = "complete" | "pending" | "over";
+
+const DAILY_TARGET_HOURS = 8;
+const HOUR_TOLERANCE = 0.01;
 
 export default function Home() {
   const [report, setReport] = useState<TimesheetReport | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [showInstructions, setShowInstructions] = useState(true);
+  const [isDragging, setIsDragging] = useState(false);
 
   const parseNumber = (numberStr: string): number => {
     if (!numberStr || numberStr.trim() === "") return 0.0;
@@ -34,16 +39,12 @@ export default function Home() {
     let s = numberStr.trim();
     s = s.replace(/"/g, "");
 
-    // Tratamento robusto de separadores:
-    // - Se a string contém '.' e ',' assume-se que ',' é separador de milhares (ex: 1,234.56)
-    // - Se contém apenas ',' assume-se que ',' é separador decimal (ex: 5,5 -> 5.5)
     if (s.includes(".") && s.includes(",")) {
       s = s.replace(/,/g, "");
     } else if (s.includes(",")) {
       s = s.replace(/,/g, ".");
     }
 
-    // Remover espaços residuais
     s = s.replace(/\s+/g, "");
 
     const n = parseFloat(s);
@@ -54,9 +55,36 @@ export default function Home() {
     if (headerLine.includes("\t")) return "\t";
     if (headerLine.includes(";")) return ";";
     if (headerLine.includes(",")) return ",";
-    // Se não encontrar nenhum separador comum, tenta detectar por espaços múltiplos
     if (headerLine.includes("  ")) return " ";
     return ",";
+  };
+
+  const splitLine = (line: string, separator: string): string[] => {
+    if (separator === " ") return line.split(/\s{2,}/);
+
+    const cols: string[] = [];
+    let current = "";
+    let insideQuotes = false;
+
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      const nextChar = line[i + 1];
+
+      if (char === "\"" && nextChar === "\"") {
+        current += "\"";
+        i++;
+      } else if (char === "\"") {
+        insideQuotes = !insideQuotes;
+      } else if (char === separator && !insideQuotes) {
+        cols.push(current);
+        current = "";
+      } else {
+        current += char;
+      }
+    }
+
+    cols.push(current);
+    return cols;
   };
 
   const findHeaderIndex = (headers: string[], ...possibleNames: string[]): number => {
@@ -70,14 +98,19 @@ export default function Home() {
     return -1;
   };
 
+  const getDailyStatus = (totalHours: number): DailyStatus => {
+    const difference = totalHours - DAILY_TARGET_HOURS;
+    if (Math.abs(difference) < HOUR_TOLERANCE) return "complete";
+    return difference < 0 ? "pending" : "over";
+  };
+
   const processCsv = (csvText: string): TimesheetReport => {
-    // Limpar linhas vazias e espaços em branco extras
-    let lines = csvText.split("\n").map(line => line.trim()).filter(line => line.length > 0);
+    const lines = csvText.split("\n").map((line) => line.trim()).filter((line) => line.length > 0);
     if (lines.length === 0) throw new Error("CSV vazio");
 
     const headerLine = lines[0];
     const separator = detectSeparator(headerLine);
-    const headers = headerLine.split(separator).map((h) => h.trim().replace(/"/g, ""));
+    const headers = splitLine(headerLine, separator).map((h) => h.trim().replace(/"/g, ""));
 
     const titleIdx = findHeaderIndex(headers, "Título", "Titulo");
     const dataIdx = findHeaderIndex(headers, "Data");
@@ -88,17 +121,18 @@ export default function Home() {
     }
 
     const dailySummaries: Map<string, DailySummary> = new Map();
+    const importedMonths: Set<string> = new Set();
     let overallTotalHours = 0;
-    let invalidLines = 0;
+    let ignoredLineCount = 0;
 
     for (let i = 1; i < lines.length; i++) {
       const line = lines[i];
       if (!line) continue;
 
-      const cols = line.split(separator).map((c) => c.trim().replace(/"/g, ""));
+      const cols = splitLine(line, separator).map((c) => c.trim().replace(/"/g, ""));
 
       if (cols.length <= Math.max(titleIdx, dataIdx, tempoIdx)) {
-        invalidLines++;
+        ignoredLineCount++;
         continue;
       }
 
@@ -107,20 +141,23 @@ export default function Home() {
         const title = cols[titleIdx]?.trim();
         const hours = parseNumber(cols[tempoIdx]);
 
-        // Validar formato da data (YYYY-MM-DD)
         if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-          invalidLines++;
+          ignoredLineCount++;
           continue;
         }
 
-        if (!title || hours === 0) continue;
+        if (!title || hours === 0) {
+          ignoredLineCount++;
+          continue;
+        }
+
+        importedMonths.add(date.slice(0, 7));
 
         if (!dailySummaries.has(date)) {
           dailySummaries.set(date, {
             date,
             activities: [],
             totalHours: 0,
-            status: "",
           });
         }
 
@@ -130,28 +167,21 @@ export default function Home() {
         overallTotalHours += hours;
       } catch (e) {
         console.error(`Erro ao processar linha: ${line}`, e);
-        invalidLines++;
+        ignoredLineCount++;
       }
     }
 
-    if (invalidLines > 0) {
-      console.warn(`${invalidLines} linhas foram ignoradas por formato inválido`);
+    if (importedMonths.size > 1) {
+      throw new Error("O arquivo contém registros de mais de um mês. Envie um CSV com apenas um mês por importação.");
     }
 
-    // Sort dates in descending order and calculate status
-    // IMPORTANTE: Usar comparação de strings (YYYY-MM-DD) em vez de new Date() para evitar bug de timezone
-    // new Date("2026-04-01") interpreta como UTC meia-noite, causando deslocamento de -1 dia em UTC-3
+    if (dailySummaries.size === 0) {
+      throw new Error("Nenhum registro válido encontrado no arquivo");
+    }
+
     const sortedSummaries = Array.from(dailySummaries.values())
       .sort((a, b) => b.date.localeCompare(a.date))
       .map((summary) => {
-        if (summary.totalHours < 8) {
-          summary.status = "Menos de 8 horas";
-        } else if (summary.totalHours > 8) {
-          summary.status = "Mais de 8 horas";
-        } else {
-          summary.status = "No horário";
-        }
-        // Sort activities by title
         summary.activities.sort((a, b) => a.title.localeCompare(b.title));
         return summary;
       });
@@ -159,15 +189,14 @@ export default function Home() {
     return {
       dailySummaries: sortedSummaries,
       overallTotalHours,
+      ignoredLineCount,
     };
   };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
+  const processFile = (file: File) => {
     setIsLoading(true);
     setError(null);
+    setIsDragging(false);
 
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -175,27 +204,63 @@ export default function Home() {
         const csvText = e.target?.result as string;
         const processedReport = processCsv(csvText);
         setReport(processedReport);
-        setShowInstructions(false);
+        setSelectedDate(processedReport.dailySummaries[0]?.date ?? null);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Erro ao processar arquivo");
         setReport(null);
+        setSelectedDate(null);
       } finally {
         setIsLoading(false);
       }
     };
+    reader.onerror = () => {
+      setError("Não foi possível ler o arquivo selecionado");
+      setIsLoading(false);
+      setReport(null);
+      setSelectedDate(null);
+    };
     reader.readAsText(file);
   };
 
-  const getStatusIcon = (status: string) => {
-    if (status === "No horário") return <CheckCircle2 className="w-5 h-5 text-[#00D084]" />;
-    if (status.includes("Menos")) return <AlertCircle className="w-5 h-5 text-[#FF6B5B]" />;
-    return <TrendingUp className="w-5 h-5 text-[#00D084]" />;
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    processFile(file);
+    event.target.value = "";
   };
 
-  const getStatusColor = (status: string) => {
-    if (status === "No horário") return "bg-[#00D084]/10 border-[#00D084]/30";
-    if (status.includes("Menos")) return "bg-[#FF6B5B]/10 border-[#FF6B5B]/30";
-    return "bg-[#00D084]/10 border-[#00D084]/30";
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    if (isLoading) return;
+
+    const file = event.dataTransfer.files?.[0];
+    if (!file) {
+      setIsDragging(false);
+      return;
+    }
+
+    processFile(file);
+  };
+
+  const getStatusIcon = (status: DailyStatus) => {
+    if (status === "complete") return <CheckCircle2 className="w-5 h-5 text-[#00D084]" />;
+    if (status === "pending") return <AlertCircle className="w-5 h-5 text-[#FF6B5B]" />;
+    return <TrendingUp className="w-5 h-5 text-[#FFB020]" />;
+  };
+
+  const getStatusLabel = (summary: DailySummary) => {
+    const status = getDailyStatus(summary.totalHours);
+    const difference = Math.abs(summary.totalHours - DAILY_TARGET_HOURS);
+
+    if (status === "complete") return "8h completas";
+    if (status === "pending") return `Pendente: faltam ${difference.toFixed(1)}h`;
+    return `Acima da meta: +${difference.toFixed(1)}h`;
+  };
+
+  const getStatusClass = (status: DailyStatus) => {
+    if (status === "complete") return "bg-[#00D084]/10 border-[#00D084]/30 text-[#00D084]";
+    if (status === "pending") return "bg-[#FF6B5B]/10 border-[#FF6B5B]/30 text-[#FF6B5B]";
+    return "bg-[#FFB020]/10 border-[#FFB020]/40 text-[#FFB020]";
   };
 
   const formatLocalDate = (date: string, options?: Intl.DateTimeFormatOptions) => {
@@ -204,9 +269,26 @@ export default function Home() {
 
   const logoSrc = `${import.meta.env.BASE_URL}assets/coopersystem-logo.svg`;
 
+  const reportStats = useMemo(() => {
+    if (!report) return null;
+
+    const completeDays = report.dailySummaries.filter((summary) => getDailyStatus(summary.totalHours) === "complete").length;
+    const pendingDays = report.dailySummaries.filter((summary) => getDailyStatus(summary.totalHours) === "pending").length;
+    const overDays = report.dailySummaries.filter((summary) => getDailyStatus(summary.totalHours) === "over").length;
+    const expectedTotalHours = report.dailySummaries.length * DAILY_TARGET_HOURS;
+
+    return {
+      completeDays,
+      pendingDays,
+      overDays,
+      expectedTotalHours,
+    };
+  }, [report]);
+
+  const selectedSummary = report?.dailySummaries.find((summary) => summary.date === selectedDate) ?? report?.dailySummaries[0];
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="border-b border-border bg-card shadow-lg">
         <div className="container py-4">
           <div className="flex items-center gap-3">
@@ -216,26 +298,40 @@ export default function Home() {
               className="h-12"
             />
             <div>
-              <h1 className="text-2xl font-bold text-foreground">Lançamento de horas</h1>
+              <h1 className="text-2xl font-bold text-foreground">Validação diária de 8h</h1>
               <p className="text-sm text-muted-foreground">BusinessMap → Coopersystem</p>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="container py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Upload Section */}
           <div className="lg:col-span-1">
             <Card className="sticky top-8 border-border bg-card">
               <CardHeader>
-                <CardTitle className="text-lg text-foreground">Upload CSV</CardTitle>
-                <CardDescription>Selecione seu arquivo de timesheet</CardDescription>
+                <CardTitle className="text-lg text-foreground">Validar lançamento diário de 8h</CardTitle>
+                <CardDescription>Envie o CSV do BusinessMap para conferir dias completos, pendentes e acima da meta.</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-primary transition-colors">
+                  <div
+                    onDragEnter={(event) => {
+                      event.preventDefault();
+                      if (!isLoading) setIsDragging(true);
+                    }}
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                      if (!isLoading) setIsDragging(true);
+                    }}
+                    onDragLeave={() => setIsDragging(false)}
+                    onDrop={handleDrop}
+                    className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+                      isDragging
+                        ? "border-primary bg-[#00D084]/10"
+                        : "border-border hover:border-primary"
+                    }`}
+                  >
                     <input
                       type="file"
                       accept=".csv,.tsv,.txt"
@@ -247,12 +343,12 @@ export default function Home() {
                     <label htmlFor="file-upload" className="cursor-pointer block">
                       <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
                       <p className="text-sm font-medium text-foreground">Clique para selecionar</p>
-                      <p className="text-xs text-muted-foreground mt-1">ou arraste um arquivo</p>
+                      <p className="text-xs text-muted-foreground mt-1">ou arraste um arquivo CSV aqui</p>
                     </label>
                   </div>
 
                   {isLoading && (
-                    <div className="flex items-center justify-center py-4">
+                    <div className="flex items-center justify-center py-4" role="status" aria-label="Processando arquivo">
                       <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
                     </div>
                   )}
@@ -264,82 +360,165 @@ export default function Home() {
                     </Alert>
                   )}
 
-                  {report && (
+                  {report && reportStats && (
                     <div className="bg-[#00D084]/10 border border-[#00D084]/30 rounded-lg p-4">
-                      <p className="text-sm font-medium text-[#00D084]">✓ Arquivo processado com sucesso!</p>
-                      <p className="text-xs text-[#00D084]/70 mt-1">{report.dailySummaries.length} dias carregados</p>
+                      <p className="text-sm font-medium text-[#00D084]">Arquivo analisado com sucesso</p>
+                      <p className="text-xs text-[#00D084]/80 mt-1">
+                        {reportStats.completeDays} de {report.dailySummaries.length} dias com 8h completas
+                      </p>
                     </div>
                   )}
+
+                  {report && report.ignoredLineCount > 0 && (
+                    <Alert className="border-[#FFB020]/40 bg-[#FFB020]/10 text-[#FFB020]">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        {report.ignoredLineCount} linha(s) foram ignoradas por data inválida, horas zeradas ou campos obrigatórios ausentes.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  <Accordion type="single" collapsible className="rounded-lg border border-border bg-background/40 px-4">
+                    <AccordionItem value="csv-format">
+                      <AccordionTrigger>Formato do arquivo</AccordionTrigger>
+                      <AccordionContent className="space-y-4">
+                        <div>
+                          <p className="text-sm font-semibold text-foreground mb-3">Campos obrigatórios:</p>
+                          <ul className="space-y-2 text-sm text-muted-foreground">
+                            <li><strong className="text-foreground">Título</strong> - descrição da tarefa</li>
+                            <li><strong className="text-foreground">Data</strong> - formato YYYY-MM-DD</li>
+                            <li><strong className="text-foreground">Tempo registrado soma</strong> - horas trabalhadas, exemplo 5.000</li>
+                          </ul>
+                        </div>
+
+                        <div>
+                          <p className="text-sm font-semibold text-foreground mb-3">Exemplo de CSV:</p>
+                          <div className="bg-[#1a2332] rounded p-3 text-xs font-mono text-muted-foreground overflow-x-auto">
+                            <div className="whitespace-pre-wrap break-words">
+{`Usuário	ID do cartão	Título	Etiquetas	Data	Tempo registrado soma
+Danilo	893566	[Back] [Arquitetural] Replicação dos endpoints	"QualityBot,#inic0004688"	2026-04-01	5.000
+Danilo	987589	[313-Maestro] Ritos (Daily, Planning)	"#inic0004688,#bbseg"	2026-04-01	1.000
+Danilo	987605	[313-Maestro] Refinamento	"#inic0004688,#bbseg"	2026-04-01	2.000`}
+                            </div>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-2">
+                            O arquivo pode ser separado por vírgula, ponto-e-vírgula ou tabulação.
+                          </p>
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Results Section */}
           <div className="lg:col-span-2">
-            {report ? (
+            {report && reportStats ? (
               <div className="space-y-6">
-                {/* Summary Card */}
                 <Card className="bg-card border-border">
                   <CardHeader>
-                    <CardTitle className="text-lg text-foreground">Resumo Geral</CardTitle>
+                    <CardTitle className="text-lg text-foreground">Conferência do período</CardTitle>
+                    <CardDescription>
+                      {reportStats.completeDays}/{report.dailySummaries.length} dias fechados com 8h.
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                       <div className="bg-[#00D084]/10 rounded-lg p-4 border border-[#00D084]/30">
-                        <p className="text-sm text-muted-foreground">Total de Horas</p>
-                        <p className="text-3xl font-bold text-[#00D084] mt-2">{report.overallTotalHours.toFixed(1)}h</p>
+                        <p className="text-sm text-muted-foreground">8h completas</p>
+                        <p className="text-3xl font-bold text-[#00D084] mt-2">{reportStats.completeDays}</p>
                       </div>
                       <div className="bg-[#FF6B5B]/10 rounded-lg p-4 border border-[#FF6B5B]/30">
-                        <p className="text-sm text-muted-foreground">Dias Registrados</p>
-                        <p className="text-3xl font-bold text-[#FF6B5B] mt-2">{report.dailySummaries.length}</p>
+                        <p className="text-sm text-muted-foreground">Dias pendentes</p>
+                        <p className="text-3xl font-bold text-[#FF6B5B] mt-2">{reportStats.pendingDays}</p>
+                      </div>
+                      <div className="bg-[#FFB020]/10 rounded-lg p-4 border border-[#FFB020]/40">
+                        <p className="text-sm text-muted-foreground">Acima da meta</p>
+                        <p className="text-3xl font-bold text-[#FFB020] mt-2">{reportStats.overDays}</p>
+                      </div>
+                      <div className="bg-[#3a4a5f]/50 rounded-lg p-4 border border-border">
+                        <p className="text-sm text-muted-foreground">Lançado / esperado</p>
+                        <p className="text-2xl font-bold text-foreground mt-2">
+                          {report.overallTotalHours.toFixed(1)}h / {reportStats.expectedTotalHours.toFixed(1)}h
+                        </p>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
 
-                {/* Daily Details */}
-                <Tabs defaultValue="0" className="w-full">
-                  <TabsList className="grid w-full grid-cols-3 lg:grid-cols-5 bg-card border border-border">
-                    {report.dailySummaries.slice(0, 5).map((summary, idx) => (
-                      <TabsTrigger key={idx} value={idx.toString()} className="text-xs">
-                        {formatLocalDate(summary.date, { month: "short", day: "numeric" })}
-                      </TabsTrigger>
-                    ))}
-                  </TabsList>
+                <Card className="bg-card border-border">
+                  <CardHeader>
+                    <CardTitle className="text-lg text-foreground">Conferência diária</CardTitle>
+                    <CardDescription>Selecione qualquer dia para revisar total e atividades.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 lg:grid-cols-[minmax(220px,260px)_1fr] gap-4">
+                      <div className="space-y-2 max-h-96 overflow-y-auto pr-1" aria-label="Lista de dias carregados">
+                        {report.dailySummaries.map((summary) => {
+                          const status = getDailyStatus(summary.totalHours);
+                          const isSelected = selectedSummary?.date === summary.date;
 
-                  {report.dailySummaries.map((summary, idx) => (
-                    <TabsContent key={idx} value={idx.toString()}>
-                      <Card className={`border-2 ${getStatusColor(summary.status)} bg-card`}>
-                        <CardHeader>
-                          <div className="flex items-start justify-between">
+                          return (
+                            <button
+                              key={summary.date}
+                              type="button"
+                              onClick={() => setSelectedDate(summary.date)}
+                              className={`w-full text-left rounded-lg border p-3 transition-colors ${
+                                isSelected
+                                  ? "border-primary bg-[#00D084]/10"
+                                  : "border-border bg-[#1a2332]/50 hover:bg-[#3a4a5f]/50"
+                              }`}
+                              aria-pressed={isSelected}
+                            >
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="text-sm font-semibold text-foreground">{formatLocalDate(summary.date)}</span>
+                                {getStatusIcon(status)}
+                              </div>
+                              <p className="mt-1 text-xs text-muted-foreground">{summary.totalHours.toFixed(1)}h lançadas</p>
+                              <p className={`mt-2 inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${getStatusClass(status)}`}>
+                                {getStatusLabel(summary)}
+                              </p>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {selectedSummary && (
+                        <div className={`rounded-lg border-2 p-4 ${getStatusClass(getDailyStatus(selectedSummary.totalHours))}`}>
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <div>
-                              <CardTitle className="text-lg text-foreground">
-                                {formatLocalDate(summary.date, {
+                              <h2 className="text-lg font-semibold text-foreground">
+                                {formatLocalDate(selectedSummary.date, {
                                   weekday: "long",
                                   year: "numeric",
                                   month: "long",
                                   day: "numeric",
                                 })}
-                              </CardTitle>
-                              <CardDescription className="mt-2">
-                                <span className="font-semibold text-foreground">{summary.totalHours.toFixed(1)}h</span> de trabalho
-                              </CardDescription>
+                              </h2>
+                              <p className="mt-1 text-sm text-muted-foreground">
+                                {selectedSummary.totalHours.toFixed(1)}h lançadas de {DAILY_TARGET_HOURS.toFixed(1)}h esperadas.
+                              </p>
                             </div>
-                            <div className="flex items-center gap-2">
-                              {getStatusIcon(summary.status)}
-                              <span className="text-sm font-medium text-foreground">{summary.status}</span>
+                            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                              {getStatusIcon(getDailyStatus(selectedSummary.totalHours))}
+                              <span>{getStatusLabel(selectedSummary)}</span>
                             </div>
                           </div>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-3">
-                            {summary.activities.map((activity, actIdx) => (
-                              <div key={actIdx} className="flex items-start justify-between p-3 bg-[#2a3a4f] rounded-lg border border-border">
+
+                          {getDailyStatus(selectedSummary.totalHours) !== "complete" && (
+                            <p className="mt-4 rounded-lg bg-[#1a2332]/60 p-3 text-sm text-muted-foreground">
+                              Revise este dia no BusinessMap e exporte novamente o CSV após corrigir o lançamento.
+                            </p>
+                          )}
+
+                          <div className="mt-4 space-y-3">
+                            {selectedSummary.activities.map((activity, actIdx) => (
+                              <div key={actIdx} className="flex items-start justify-between gap-4 rounded-lg border border-border bg-[#2a3a4f] p-3">
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium text-foreground line-clamp-2">{activity.title}</p>
+                                  <p className="text-sm font-medium text-foreground">{activity.title}</p>
                                 </div>
-                                <div className="ml-4 flex-shrink-0">
+                                <div className="flex-shrink-0">
                                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-[#00D084]/20 text-[#00D084]">
                                     {activity.hours.toFixed(1)}h
                                   </span>
@@ -347,117 +526,49 @@ export default function Home() {
                               </div>
                             ))}
                           </div>
-                        </CardContent>
-                      </Card>
-                    </TabsContent>
-                  ))}
-                </Tabs>
-
-                {/* All Days View */}
-                <Card className="bg-card border-border">
-                  <CardHeader>
-                    <CardTitle className="text-lg text-foreground">Todos os Dias</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2 max-h-96 overflow-y-auto">
-                      {report.dailySummaries.map((summary, idx) => (
-                        <div key={idx} className="flex items-center justify-between p-3 hover:bg-[#3a4a5f]/50 rounded-lg transition-colors">
-                          <div>
-                            <p className="text-sm font-medium text-foreground">
-                              {formatLocalDate(summary.date)}
-                            </p>
-                            <p className="text-xs text-muted-foreground">{summary.activities.length} atividades</p>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <span className="text-sm font-semibold text-foreground">{summary.totalHours.toFixed(1)}h</span>
-                            {getStatusIcon(summary.status)}
-                          </div>
                         </div>
-                      ))}
+                      )}
                     </div>
                   </CardContent>
                 </Card>
               </div>
             ) : (
               <div className="space-y-6">
-                {/* Instructions Card */}
-                {showInstructions && (
-                  <Card className="border-primary/30 bg-[#00D084]/10">
-                    <CardHeader>
-                      <div className="flex items-start gap-3">
-                        <Info className="w-5 h-5 text-primary mt-1 flex-shrink-0" />
-                        <div>
-                          <CardTitle className="text-lg text-foreground">Como usar</CardTitle>
-                          <CardDescription className="text-muted-foreground mt-1">
-                            Seu arquivo CSV deve conter os seguintes campos obrigatórios:
-                          </CardDescription>
-                        </div>
+                <Card className="border-primary/30 bg-[#00D084]/10">
+                  <CardHeader>
+                    <div className="flex items-start gap-3">
+                      <Info className="w-5 h-5 text-primary mt-1 flex-shrink-0" />
+                      <div>
+                        <CardTitle className="text-lg text-foreground">Como a validação funciona</CardTitle>
+                        <CardDescription className="text-muted-foreground mt-1">
+                          O sistema soma as atividades por data e compara cada dia com a meta de 8h.
+                        </CardDescription>
                       </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="bg-card rounded-lg p-4 border border-border">
-                        <p className="text-sm font-semibold text-foreground mb-3">Campos obrigatórios:</p>
-                        <ul className="space-y-2 text-sm text-muted-foreground">
-                          <li className="flex items-center gap-2">
-                            <span className="w-2 h-2 bg-primary rounded-full"></span>
-                            <strong className="text-foreground">Usuário</strong> - Nome do colaborador
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <span className="w-2 h-2 bg-primary rounded-full"></span>
-                            <strong className="text-foreground">ID do cartão</strong> - Identificador do cartão
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <span className="w-2 h-2 bg-primary rounded-full"></span>
-                            <strong className="text-foreground">Título</strong> - Descrição da tarefa
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <span className="w-2 h-2 bg-primary rounded-full"></span>
-                            <strong className="text-foreground">Etiquetas</strong> - Tags/categorias (opcional)
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <span className="w-2 h-2 bg-primary rounded-full"></span>
-                            <strong className="text-foreground">Data</strong> - Data do registro (formato: YYYY-MM-DD)
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <span className="w-2 h-2 bg-primary rounded-full"></span>
-                            <strong className="text-foreground">Tempo registrado soma</strong> - Horas trabalhadas (formato: 5.000)
-                          </li>
-                        </ul>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                      <div className="rounded-lg border border-[#00D084]/30 bg-card p-3">
+                        <p className="font-semibold text-[#00D084]">8h completas</p>
+                        <p className="text-muted-foreground mt-1">Dia pronto para conferência final.</p>
                       </div>
-
-                      <div className="bg-card rounded-lg p-4 border border-border">
-                        <p className="text-sm font-semibold text-foreground mb-3">Exemplo de arquivo CSV:</p>
-                        <div className="bg-[#1a2332] rounded p-3 text-xs font-mono text-muted-foreground overflow-x-auto">
-                          <div className="whitespace-pre-wrap break-words">
-{`Usuário	ID do cartão	Título	Etiquetas	Data	Tempo registrado soma
-Danilo	893566	[Back] [Arquitetural] Replicação dos endpoints	"QualityBot,#inic0004688"	2026-04-01	5.000
-Danilo	987589	[313-Maestro] Ritos (Daily, Planning)	"#inic0004688,#bbseg"	2026-04-01	1.000
-Danilo	987605	[313-Maestro] Refinamento	"#inic0004688,#bbseg"	2026-04-01	2.000`}
-                          </div>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-2">
-                          💡 Dica: O arquivo pode ser separado por vírgula, ponto-e-vírgula ou tabulação
-                        </p>
+                      <div className="rounded-lg border border-[#FF6B5B]/30 bg-card p-3">
+                        <p className="font-semibold text-[#FF6B5B]">Pendente</p>
+                        <p className="text-muted-foreground mt-1">Faltam horas para fechar a meta.</p>
                       </div>
+                      <div className="rounded-lg border border-[#FFB020]/40 bg-card p-3">
+                        <p className="font-semibold text-[#FFB020]">Acima da meta</p>
+                        <p className="text-muted-foreground mt-1">Há horas a revisar acima de 8h.</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
 
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowInstructions(false)}
-                        className="w-full"
-                      >
-                        Entendi, esconder instruções
-                      </Button>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Empty State */}
                 <Card className="border-2 border-dashed border-border bg-card">
                   <CardContent className="flex flex-col items-center justify-center py-12">
                     <Upload className="w-12 h-12 text-muted-foreground mb-4" />
                     <p className="text-muted-foreground text-center">
-                      Faça upload de um arquivo CSV para começar a processar seus registros de timesheet
+                      Envie o CSV para começar a conferência dos lançamentos diários.
                     </p>
                   </CardContent>
                 </Card>
@@ -467,10 +578,9 @@ Danilo	987605	[313-Maestro] Refinamento	"#inic0004688,#bbseg"	2026-04-01	2.000`}
         </div>
       </main>
 
-      {/* Footer */}
       <footer className="border-t border-border bg-card mt-12">
         <div className="container py-6 text-center text-sm text-muted-foreground">
-          <p>Lançamento de horas BusinessMap → Coopersystem v1.0</p>
+          <p>Validação diária de 8h BusinessMap → Coopersystem v1.0</p>
         </div>
       </footer>
     </div>
