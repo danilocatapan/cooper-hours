@@ -1119,7 +1119,7 @@ Danilo	987605	[313-Maestro] Refinamento	"#inic0004688,#bbseg"	2026-04-01	2.000`}
                               </div>
                               <div className="space-y-2">
                                 <Label htmlFor={`issue-${normalizeTitle(title)}`}>issue_id</Label>
-                                <Input id={`issue-${normalizeTitle(title)}`} inputMode="numeric" placeholder="apÃ³s Cecis" value={taskConfigs[title]?.issueId ?? ""} onChange={(event) => updateTaskConfig(title, "issueId", event.target.value)} />
+                                <Input id={`issue-${normalizeTitle(title)}`} inputMode="numeric" placeholder="após Cecis" value={taskConfigs[title]?.issueId ?? ""} onChange={(event) => updateTaskConfig(title, "issueId", event.target.value)} />
                               </div>
                             </div>
                           ))}
