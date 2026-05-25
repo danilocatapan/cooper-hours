@@ -59,6 +59,87 @@ test('upload CSV and show full report flow', async ({ page }) => {
   await expect(page.getByRole('button', { name: /01\/04\/2026/i })).toBeVisible();
 });
 
+test('create tasks tab generates the exact batch JSON contract', async ({ page }) => {
+  const csv = buildCsv([
+    'Danilo\t893566\tTarefa API\t"tag"\t2026-04-01\t5.000',
+    'Danilo\t987589\tTarefa UI\t"tag"\t2026-04-15\t3.000',
+  ]);
+
+  await page.locator('input[type="file"]').setInputFiles({
+    name: 'tasks-contract.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from(csv, 'utf8'),
+  });
+
+  await expect(page.getByRole('tab', { name: /Criar Tarefas/i })).toBeVisible();
+  await page.getByRole('tab', { name: /Criar Tarefas/i }).click();
+
+  const jsonText = await page.getByTestId('tasks-json').textContent();
+  const json = JSON.parse(jsonText || '');
+
+  expect(Object.keys(json)).toEqual(['action', 'tasks']);
+  expect(json.action).toBe('create_tasks_batch');
+  expect(json.tasks).toHaveLength(2);
+  expect(Object.keys(json.tasks[0])).toEqual([
+    'subject',
+    'project_id',
+    'assigned_to_id',
+    'tracker_id',
+    'start_date',
+    'due_date',
+    'status_id',
+    'fixed_version_name',
+    'description',
+  ]);
+  expect(json.tasks[0]).toMatchObject({
+    project_id: 333,
+    assigned_to_id: 388,
+    tracker_id: 5,
+    start_date: '2026-04-01',
+    due_date: '2026-04-15',
+    status_id: 3,
+    fixed_version_name: 'SPRINT 103',
+    description: 'Detalhes...',
+  });
+  expect(json.tasks.map((task: { subject: string }) => task.subject).sort()).toEqual(['Tarefa API', 'Tarefa UI']);
+});
+
+test('time entries tab generates the exact array JSON contract', async ({ page }) => {
+  const csv = buildCsv([
+    'Danilo\t893566\tTarefa API\t"tag"\t2026-04-14\t2.000',
+    'Danilo\t987589\tTarefa UI\t"tag"\t2026-04-15\t6.000',
+  ]);
+
+  await page.locator('input[type="file"]').setInputFiles({
+    name: 'time-contract.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from(csv, 'utf8'),
+  });
+
+  await expect(page.getByRole('tab', { name: /Registrar Tempo/i })).toBeVisible();
+  await page.getByRole('tab', { name: /Registrar Tempo/i }).click();
+
+  const jsonText = await page.getByTestId('time-entries-json').textContent();
+  const json = JSON.parse(jsonText || '');
+
+  expect(Array.isArray(json)).toBeTruthy();
+  expect(json).toHaveLength(1);
+  expect(Object.keys(json[0])).toEqual([
+    'issue_id',
+    'hours',
+    'spent_on',
+    'activity_id',
+    'comments',
+  ]);
+  expect(json[0]).toEqual({
+    issue_id: 289825,
+    hours: 2,
+    spent_on: '2026-04-14',
+    activity_id: 20,
+    comments: '',
+  });
+});
+
 test('all days remain navigable when CSV has more than five days', async ({ page }) => {
   const rows = Array.from({ length: 7 }, (_, idx) => {
     const day = String(idx + 1).padStart(2, '0');

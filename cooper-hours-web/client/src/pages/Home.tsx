@@ -1,13 +1,20 @@
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, AlertCircle, CheckCircle2, TrendingUp, Info } from "lucide-react";
+import { Upload, AlertCircle, CheckCircle2, TrendingUp, Info, ClipboardList, Clock3, Copy, Plus, Trash2, FileJson } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 
 interface Activity {
   title: string;
   hours: number;
+  cardId?: string;
 }
 
 interface DailySummary {
@@ -31,12 +38,60 @@ interface TimesheetReport {
   businessDayCount: number;
   missingBusinessDays: string[];
   weekendOrExtraDays: string[];
+  cardIds: string[];
+  minImportedDate: string;
+  maxImportedDate: string;
+}
+
+interface TaskDefaults {
+  projectId: string;
+  assignedToId: string;
+  trackerId: string;
+  startDate: string;
+  dueDate: string;
+  statusId: string;
+  fixedVersionName: string;
+  description: string;
+}
+
+interface TimeEntryForm {
+  hours: string;
+  spentOn: string;
+  activityId: string;
+  comments: string;
 }
 
 type DailyStatus = "complete" | "pending" | "over";
+type CopiedTarget = "tasks" | "time" | "report" | null;
 
 const DAILY_TARGET_HOURS = 8;
 const HOUR_TOLERANCE = 0.01;
+
+const DEFAULT_TASKS: TaskDefaults = {
+  projectId: "333",
+  assignedToId: "388",
+  trackerId: "5",
+  startDate: "2026-04-01",
+  dueDate: "2026-04-15",
+  statusId: "3",
+  fixedVersionName: "SPRINT 103",
+  description: "Detalhes...",
+};
+
+const DEFAULT_ISSUE_ID = "289825";
+const DEFAULT_ACTIVITY_ID = "20";
+
+const trackerOptions = [
+  { value: "5", label: "Desenvolvimento" },
+  { value: "21", label: "Reuniões" },
+  { value: "12", label: "Análise e Refinamento" },
+];
+
+const activityOptions = [
+  { value: "9", label: "Desenvolvimento" },
+  { value: "10", label: "Reuniões" },
+  { value: "20", label: "Análise e Refinamento" },
+];
 
 export default function Home() {
   const [report, setReport] = useState<TimesheetReport | null>(null);
@@ -44,6 +99,13 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [activeResultTab, setActiveResultTab] = useState("conference");
+  const [taskDefaults, setTaskDefaults] = useState<TaskDefaults>(DEFAULT_TASKS);
+  const [selectedCardId, setSelectedCardId] = useState("");
+  const [issueId, setIssueId] = useState(DEFAULT_ISSUE_ID);
+  const [defaultActivityId, setDefaultActivityId] = useState(DEFAULT_ACTIVITY_ID);
+  const [timeEntries, setTimeEntries] = useState<TimeEntryForm[]>([]);
+  const [copiedTarget, setCopiedTarget] = useState<CopiedTarget>(null);
 
   const parseNumber = (numberStr: string): number => {
     if (!numberStr || numberStr.trim() === "") return 0.0;
@@ -61,6 +123,11 @@ export default function Home() {
 
     const n = parseFloat(s);
     return Number.isFinite(n) ? n : 0.0;
+  };
+
+  const parseInteger = (value: string): number => {
+    const n = parseInt(value, 10);
+    return Number.isFinite(n) ? n : 0;
   };
 
   const detectSeparator = (headerLine: string): string => {
@@ -156,11 +223,11 @@ export default function Home() {
     const separator = detectSeparator(headerLine);
     const headers = splitLine(headerLine, separator).map((h) => h.trim().replace(/"/g, ""));
 
-    const titleIdx = findHeaderIndex(headers, "Título", "Titulo");
+    const titleIdx = findHeaderIndex(headers, "Título", "TÃ­tulo", "Titulo");
     const dataIdx = findHeaderIndex(headers, "Data");
     const tempoIdx = findHeaderIndex(headers, "Tempo registrado soma", "Tempo");
-    const userIdx = findHeaderIndex(headers, "Usuário", "Usuario");
-    const cardIdx = findHeaderIndex(headers, "ID do cartão", "ID do cartao", "ID", "Cartão", "Cartao");
+    const userIdx = findHeaderIndex(headers, "Usuário", "UsuÃ¡rio", "Usuario");
+    const cardIdx = findHeaderIndex(headers, "ID do cartão", "ID do cartÃ£o", "ID do cartao", "ID", "Cartão", "CartÃ£o", "Cartao", "Card ID");
 
     if (titleIdx === -1 || dataIdx === -1 || tempoIdx === -1) {
       throw new Error("Colunas obrigatórias não encontradas (Título, Data, Tempo registrado soma)");
@@ -170,6 +237,8 @@ export default function Home() {
     const importedMonths: Set<string> = new Set();
     const importedUsers: Set<string> = new Set();
     const duplicateKeys: Set<string> = new Set();
+    const cardIds: Set<string> = new Set();
+    const importedDates: Set<string> = new Set();
     let overallTotalHours = 0;
     let ignoredLineCount = 0;
     let duplicateLineCount = 0;
@@ -204,7 +273,9 @@ export default function Home() {
         }
 
         importedMonths.add(date.slice(0, 7));
+        importedDates.add(date);
         if (user) importedUsers.add(user);
+        if (cardId) cardIds.add(cardId);
 
         const duplicateKey = [date, cardId, title, hours.toFixed(3)].join("|").toLowerCase();
         if (duplicateKeys.has(duplicateKey)) {
@@ -224,7 +295,7 @@ export default function Home() {
         }
 
         const summary = dailySummaries.get(date)!;
-        summary.activities.push({ title, hours });
+        summary.activities.push({ title, hours, cardId });
         summary.totalHours += hours;
         overallTotalHours += hours;
         validLineCount++;
@@ -247,6 +318,7 @@ export default function Home() {
     }
 
     const importedMonth = Array.from(importedMonths)[0];
+    const sortedImportedDates = Array.from(importedDates).sort();
     const businessDays = getBusinessDaysForMonth(importedMonth);
     const missingBusinessDays = businessDays.filter((date) => !dailySummaries.has(date));
     const weekendOrExtraDays = Array.from(dailySummaries.values())
@@ -283,29 +355,64 @@ export default function Home() {
       businessDayCount: businessDays.length,
       missingBusinessDays,
       weekendOrExtraDays,
+      cardIds: Array.from(cardIds).sort(),
+      minImportedDate: sortedImportedDates[0] ?? `${importedMonth}-01`,
+      maxImportedDate: sortedImportedDates[sortedImportedDates.length - 1] ?? `${importedMonth}-01`,
     };
+  };
+
+  const buildTimeEntriesForCard = (sourceReport: TimesheetReport, cardId: string, activityId: string): TimeEntryForm[] => {
+    if (!cardId) return [];
+
+    return sourceReport.dailySummaries
+      .filter((summary) => !summary.isMissing)
+      .flatMap((summary) =>
+        summary.activities
+          .filter((activity) => activity.cardId === cardId)
+          .map((activity) => ({
+            hours: activity.hours.toString(),
+            spentOn: summary.date,
+            activityId,
+            comments: "",
+          }))
+      );
   };
 
   const processFile = (file: File) => {
     setIsLoading(true);
     setError(null);
     setIsDragging(false);
+    setCopiedTarget(null);
 
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
         const csvText = e.target?.result as string;
         const processedReport = processCsv(csvText);
+        const initialCardId = processedReport.cardIds[0] ?? "";
+
         setReport(processedReport);
         setSelectedDate(
           processedReport.dailySummaries.find((summary) => !summary.isMissing)?.date
           ?? processedReport.dailySummaries[0]?.date
           ?? null
         );
+        setActiveResultTab("conference");
+        setTaskDefaults({
+          ...DEFAULT_TASKS,
+          startDate: processedReport.minImportedDate,
+          dueDate: processedReport.maxImportedDate,
+        });
+        setSelectedCardId(initialCardId);
+        setIssueId(DEFAULT_ISSUE_ID);
+        setDefaultActivityId(DEFAULT_ACTIVITY_ID);
+        setTimeEntries(initialCardId ? buildTimeEntriesForCard(processedReport, initialCardId, DEFAULT_ACTIVITY_ID) : []);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Erro ao processar arquivo");
         setReport(null);
         setSelectedDate(null);
+        setSelectedCardId("");
+        setTimeEntries([]);
       } finally {
         setIsLoading(false);
       }
@@ -315,6 +422,8 @@ export default function Home() {
       setIsLoading(false);
       setReport(null);
       setSelectedDate(null);
+      setSelectedCardId("");
+      setTimeEntries([]);
     };
     reader.readAsText(file);
   };
@@ -393,6 +502,52 @@ export default function Home() {
     URL.revokeObjectURL(url);
   };
 
+  const updateTaskDefault = (key: keyof TaskDefaults, value: string) => {
+    setTaskDefaults((current) => ({ ...current, [key]: value }));
+  };
+
+  const handleCardChange = (cardId: string) => {
+    setSelectedCardId(cardId);
+    if (!report) {
+      setTimeEntries([]);
+      return;
+    }
+    setTimeEntries(buildTimeEntriesForCard(report, cardId, defaultActivityId));
+  };
+
+  const handleDefaultActivityChange = (activityId: string) => {
+    setDefaultActivityId(activityId);
+    setTimeEntries((current) => current.map((entry) => ({ ...entry, activityId })));
+  };
+
+  const updateTimeEntry = (index: number, key: keyof TimeEntryForm, value: string) => {
+    setTimeEntries((current) => current.map((entry, entryIndex) => (
+      entryIndex === index ? { ...entry, [key]: value } : entry
+    )));
+  };
+
+  const addTimeEntry = () => {
+    setTimeEntries((current) => [
+      ...current,
+      {
+        hours: "1",
+        spentOn: report?.maxImportedDate ?? new Date().toISOString().slice(0, 10),
+        activityId: defaultActivityId,
+        comments: "",
+      },
+    ]);
+  };
+
+  const removeTimeEntry = (index: number) => {
+    setTimeEntries((current) => current.filter((_, entryIndex) => entryIndex !== index));
+  };
+
+  const copyJson = async (jsonText: string, target: Exclude<CopiedTarget, null>) => {
+    await navigator.clipboard.writeText(jsonText);
+    setCopiedTarget(target);
+    window.setTimeout(() => setCopiedTarget(null), 1800);
+  };
+
   const logoSrc = `${import.meta.env.BASE_URL}assets/coopersystem-logo.svg`;
 
   const reportStats = useMemo(() => {
@@ -412,6 +567,43 @@ export default function Home() {
       expectedSummaries,
     };
   }, [report]);
+
+  const uniqueTaskTitles = useMemo(() => {
+    const titles = new Set<string>();
+    report?.dailySummaries.forEach((summary) => {
+      if (summary.isMissing) return;
+      summary.activities.forEach((activity) => titles.add(activity.title));
+    });
+    return Array.from(titles).sort((a, b) => a.localeCompare(b));
+  }, [report]);
+
+  const tasksJsonText = useMemo(() => {
+    const tasks = uniqueTaskTitles.map((title) => ({
+      subject: title,
+      project_id: parseInteger(taskDefaults.projectId),
+      assigned_to_id: parseInteger(taskDefaults.assignedToId),
+      tracker_id: parseInteger(taskDefaults.trackerId),
+      start_date: taskDefaults.startDate,
+      due_date: taskDefaults.dueDate,
+      status_id: parseInteger(taskDefaults.statusId),
+      fixed_version_name: taskDefaults.fixedVersionName,
+      description: taskDefaults.description,
+    }));
+
+    return JSON.stringify({ action: "create_tasks_batch", tasks }, null, 2);
+  }, [taskDefaults, uniqueTaskTitles]);
+
+  const timeEntriesJsonText = useMemo(() => {
+    const entries = timeEntries.map((entry) => ({
+      issue_id: parseInteger(issueId),
+      hours: parseNumber(entry.hours),
+      spent_on: entry.spentOn,
+      activity_id: parseInteger(entry.activityId),
+      comments: entry.comments,
+    }));
+
+    return JSON.stringify(entries, null, 2);
+  }, [issueId, parseNumber, timeEntries]);
 
   const selectedSummary = report?.dailySummaries.find((summary) => summary.date === selectedDate) ?? report?.dailySummaries[0];
   const summaryByDate = useMemo(() => {
@@ -558,213 +750,468 @@ Danilo	987605	[313-Maestro] Refinamento	"#inic0004688,#bbseg"	2026-04-01	2.000`}
 
           <div className="lg:col-span-2">
             {report && reportStats ? (
-              <div className="space-y-6">
-                <Card className="bg-card border-border">
-                  <CardHeader>
-                    <CardTitle className="text-lg text-foreground">Conferência do período</CardTitle>
-                    <CardDescription>
-                      {reportStats.completeDays}/{report.businessDayCount} dias úteis fechados com 8h.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-                      <div className="bg-[#00D084]/10 rounded-lg p-4 border border-[#00D084]/30">
-                        <p className="text-sm text-muted-foreground">8h completas</p>
-                        <p className="text-3xl font-bold text-[#00D084] mt-2">{reportStats.completeDays}</p>
-                      </div>
-                      <div className="bg-[#FF6B5B]/10 rounded-lg p-4 border border-[#FF6B5B]/30">
-                        <p className="text-sm text-muted-foreground">Dias pendentes</p>
-                        <p className="text-3xl font-bold text-[#FF6B5B] mt-2">{reportStats.pendingDays}</p>
-                      </div>
-                      <div className="bg-[#FFB020]/10 rounded-lg p-4 border border-[#FFB020]/40">
-                        <p className="text-sm text-muted-foreground">Acima da meta</p>
-                        <p className="text-3xl font-bold text-[#FFB020] mt-2">{reportStats.overDays}</p>
-                      </div>
-                      <div className="bg-[#3a4a5f]/50 rounded-lg p-4 border border-border">
-                        <p className="text-sm text-muted-foreground">Lançado / esperado</p>
-                        <p className="text-2xl font-bold text-foreground mt-2">
-                          {report.overallTotalHours.toFixed(1)}h / {reportStats.expectedTotalHours.toFixed(1)}h
-                        </p>
-                      </div>
-                    </div>
+              <Tabs value={activeResultTab} onValueChange={setActiveResultTab} className="space-y-6">
+                <TabsList className="h-auto w-full justify-start overflow-x-auto rounded-lg border border-border bg-card p-1">
+                  <TabsTrigger value="conference" className="flex-none px-3 py-2">
+                    <CheckCircle2 className="h-4 w-4" />
+                    Conferência
+                  </TabsTrigger>
+                  <TabsTrigger value="tasks" className="flex-none px-3 py-2">
+                    <ClipboardList className="h-4 w-4" />
+                    Criar Tarefas
+                  </TabsTrigger>
+                  <TabsTrigger value="time" className="flex-none px-3 py-2">
+                    <Clock3 className="h-4 w-4" />
+                    Registrar Tempo
+                  </TabsTrigger>
+                </TabsList>
 
-                    <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                      <div className="rounded-lg border border-border bg-[#1a2332]/50 p-3">
-                        <p className="text-muted-foreground">Resumo da importação</p>
-                        <p className="mt-1 text-foreground">
-                          {report.validLineCount} de {report.rawLineCount} linhas válidas
-                          {report.userName ? ` para ${report.userName}` : ""} em {report.importedMonth}.
-                        </p>
+                <TabsContent value="conference" className="space-y-6">
+                  <Card className="bg-card border-border">
+                    <CardHeader>
+                      <CardTitle className="text-lg text-foreground">Conferência do período</CardTitle>
+                      <CardDescription>
+                        {reportStats.completeDays}/{report.businessDayCount} dias úteis fechados com 8h.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                        <div className="bg-[#00D084]/10 rounded-lg p-4 border border-[#00D084]/30">
+                          <p className="text-sm text-muted-foreground">8h completas</p>
+                          <p className="text-3xl font-bold text-[#00D084] mt-2">{reportStats.completeDays}</p>
+                        </div>
+                        <div className="bg-[#FF6B5B]/10 rounded-lg p-4 border border-[#FF6B5B]/30">
+                          <p className="text-sm text-muted-foreground">Dias pendentes</p>
+                          <p className="text-3xl font-bold text-[#FF6B5B] mt-2">{reportStats.pendingDays}</p>
+                        </div>
+                        <div className="bg-[#FFB020]/10 rounded-lg p-4 border border-[#FFB020]/40">
+                          <p className="text-sm text-muted-foreground">Acima da meta</p>
+                          <p className="text-3xl font-bold text-[#FFB020] mt-2">{reportStats.overDays}</p>
+                        </div>
+                        <div className="bg-[#3a4a5f]/50 rounded-lg p-4 border border-border">
+                          <p className="text-sm text-muted-foreground">Lançado / esperado</p>
+                          <p className="text-2xl font-bold text-foreground mt-2">
+                            {report.overallTotalHours.toFixed(1)}h / {reportStats.expectedTotalHours.toFixed(1)}h
+                          </p>
+                        </div>
                       </div>
-                      <div className="rounded-lg border border-border bg-[#1a2332]/50 p-3">
-                        <p className="text-muted-foreground">Dias úteis ausentes</p>
-                        <p className="mt-1 text-foreground">
-                          {report.missingBusinessDays.length === 0
-                            ? "Nenhum dia útil ausente no mês."
-                            : `${report.missingBusinessDays.length} dia(s) sem lançamento.`}
-                        </p>
+
+                      <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                        <div className="rounded-lg border border-border bg-[#1a2332]/50 p-3">
+                          <p className="text-muted-foreground">Resumo da importação</p>
+                          <p className="mt-1 text-foreground">
+                            {report.validLineCount} de {report.rawLineCount} linhas válidas
+                            {report.userName ? ` para ${report.userName}` : ""} em {report.importedMonth}.
+                          </p>
+                        </div>
+                        <div className="rounded-lg border border-border bg-[#1a2332]/50 p-3">
+                          <p className="text-muted-foreground">Dias úteis ausentes</p>
+                          <p className="mt-1 text-foreground">
+                            {report.missingBusinessDays.length === 0
+                              ? "Nenhum dia útil ausente no mês."
+                              : `${report.missingBusinessDays.length} dia(s) sem lançamento.`}
+                          </p>
+                        </div>
                       </div>
-                    </div>
 
-                    {report.missingBusinessDays.length > 0 && (
-                      <Alert className="mt-4 border-[#FF6B5B]/30 bg-[#FF6B5B]/10 text-[#FF6B5B]">
-                        <AlertCircle className="h-4 w-4" />
-                        <AlertDescription>
-                          {report.missingBusinessDays.length} dia(s) úteis estão sem lançamento. Eles aparecem em vermelho na grade mensal abaixo.
-                        </AlertDescription>
-                      </Alert>
-                    )}
+                      {report.missingBusinessDays.length > 0 && (
+                        <Alert className="mt-4 border-[#FF6B5B]/30 bg-[#FF6B5B]/10 text-[#FF6B5B]">
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertDescription>
+                            {report.missingBusinessDays.length} dia(s) úteis estão sem lançamento. Eles aparecem em vermelho na grade mensal abaixo.
+                          </AlertDescription>
+                        </Alert>
+                      )}
 
-                    {report.weekendOrExtraDays.length > 0 && (
-                      <Alert className="mt-4 border-[#FFB020]/40 bg-[#FFB020]/10 text-[#FFB020]">
-                        <AlertCircle className="h-4 w-4" />
-                        <AlertDescription>
-                          {report.weekendOrExtraDays.length} sábado/domingo foram importados e exibidos como hora extra, mas não entram na meta obrigatória de dias úteis.
-                        </AlertDescription>
-                      </Alert>
-                    )}
+                      {report.weekendOrExtraDays.length > 0 && (
+                        <Alert className="mt-4 border-[#FFB020]/40 bg-[#FFB020]/10 text-[#FFB020]">
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertDescription>
+                            {report.weekendOrExtraDays.length} sábado/domingo foram importados e exibidos como hora extra, mas não entram na meta obrigatória de dias úteis.
+                          </AlertDescription>
+                        </Alert>
+                      )}
 
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="mt-4 w-full sm:w-auto"
-                      onClick={downloadReportCsv}
-                    >
-                      Baixar relatório CSV
-                    </Button>
-                  </CardContent>
-                </Card>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="mt-4 w-full sm:w-auto"
+                        onClick={downloadReportCsv}
+                      >
+                        Baixar relatório CSV
+                      </Button>
+                    </CardContent>
+                  </Card>
 
-                <Card className="bg-card border-border">
-                  <CardHeader>
-                    <CardTitle className="text-lg text-foreground">Conferência diária</CardTitle>
-                    <CardDescription>Selecione qualquer dia para revisar total e atividades.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div aria-label="Calendário do mês importado">
-                        <div className="grid grid-cols-7 gap-2 text-center text-xs font-medium text-muted-foreground">
-                          {["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"].map((weekday) => (
-                            <span key={weekday}>{weekday}</span>
+                  <Card className="bg-card border-border">
+                    <CardHeader>
+                      <CardTitle className="text-lg text-foreground">Conferência diária</CardTitle>
+                      <CardDescription>Selecione qualquer dia para revisar total e atividades.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <div aria-label="Calendário do mês importado">
+                          <div className="grid grid-cols-7 gap-2 text-center text-xs font-medium text-muted-foreground">
+                            {["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"].map((weekday) => (
+                              <span key={weekday}>{weekday}</span>
+                            ))}
+                          </div>
+                          <div className="mt-2 grid grid-cols-7 gap-2">
+                            {calendarCells.map((date, idx) => {
+                              if (!date) return <div key={`empty-${idx}`} className="min-h-16" />;
+
+                              const summary = summaryByDate.get(date);
+                              const dayNumber = Number(date.slice(-2));
+                              const isWeekend = !isBusinessDay(date);
+                              const isSelected = selectedSummary?.date === date;
+
+                              if (!summary) {
+                                return (
+                                  <div
+                                    key={date}
+                                    className="min-h-16 rounded-lg border border-border/60 bg-[#1a2332]/30 p-2 text-left opacity-60"
+                                  >
+                                    <p className="text-sm font-semibold text-muted-foreground">{dayNumber}</p>
+                                    {isWeekend && <p className="mt-1 text-[11px] text-muted-foreground">opcional</p>}
+                                  </div>
+                                );
+                              }
+
+                              const status = getDailyStatus(summary.totalHours);
+
+                              return (
+                                <button
+                                  key={date}
+                                  type="button"
+                                  onClick={() => setSelectedDate(date)}
+                                  aria-label={`${formatLocalDate(date)} ${summary.totalHours.toFixed(1)}h ${summary.isMissing ? "ausente" : summary.isBusinessDay ? "dia útil" : "hora extra"}`}
+                                  className={`min-h-16 rounded-lg border p-2 text-left transition-colors ${
+                                    isSelected
+                                      ? "border-primary bg-[#00D084]/10"
+                                      : summary.isMissing
+                                        ? "border-[#FF6B5B]/30 bg-[#FF6B5B]/10 hover:bg-[#FF6B5B]/15"
+                                        : !summary.isBusinessDay
+                                          ? "border-[#FFB020]/40 bg-[#FFB020]/10 hover:bg-[#FFB020]/15"
+                                          : "border-border bg-[#1a2332]/50 hover:bg-[#3a4a5f]/50"
+                                  }`}
+                                  aria-pressed={isSelected}
+                                >
+                                  <div className="flex items-center justify-between gap-1">
+                                    <span className="text-sm font-semibold text-foreground">{dayNumber}</span>
+                                    {getStatusIcon(status)}
+                                  </div>
+                                  <p className="mt-1 text-xs text-muted-foreground">{summary.totalHours.toFixed(1)}h</p>
+                                  <p className={`mt-1 w-fit rounded-full border px-1.5 py-0.5 text-[11px] font-medium ${getStatusClass(status)}`}>
+                                    {summary.isMissing ? "ausente" : summary.isBusinessDay ? "dia útil" : "extra"}
+                                  </p>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {selectedSummary && (
+                          <div className={`rounded-lg border-2 p-4 ${getStatusClass(getDailyStatus(selectedSummary.totalHours))}`}>
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                              <div>
+                                <h2 className="text-lg font-semibold text-foreground">
+                                  {formatLocalDate(selectedSummary.date, {
+                                    weekday: "long",
+                                    year: "numeric",
+                                    month: "long",
+                                    day: "numeric",
+                                  })}
+                                </h2>
+                                <p className="mt-1 text-sm text-muted-foreground">
+                                  {selectedSummary.totalHours.toFixed(1)}h lançadas de {DAILY_TARGET_HOURS.toFixed(1)}h esperadas.
+                                </p>
+                                {selectedSummary.isMissing && (
+                                  <p className="mt-1 text-sm text-[#FF6B5B]">Sem registro no CSV.</p>
+                                )}
+                                {!selectedSummary.isBusinessDay && (
+                                  <p className="mt-1 text-sm text-[#FFB020]">Hora extra, não obrigatória.</p>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                                {getStatusIcon(getDailyStatus(selectedSummary.totalHours))}
+                                <span>{getStatusLabel(selectedSummary)}</span>
+                              </div>
+                            </div>
+
+                            {getDailyStatus(selectedSummary.totalHours) !== "complete" && (
+                              <p className="mt-4 rounded-lg bg-[#1a2332]/60 p-3 text-sm text-muted-foreground">
+                                {selectedSummary.isMissing
+                                  ? "Inclua este dia no BusinessMap e exporte novamente o CSV após corrigir o lançamento."
+                                  : "Revise este dia no BusinessMap e exporte novamente o CSV após corrigir o lançamento."}
+                              </p>
+                            )}
+
+                            <div className="mt-4 space-y-3">
+                              {selectedSummary.activities.length > 0 ? (
+                                selectedSummary.activities.map((activity, actIdx) => (
+                                  <div key={actIdx} className="flex items-start justify-between gap-4 rounded-lg border border-border bg-[#2a3a4f] p-3">
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-medium text-foreground">{activity.title}</p>
+                                      {activity.cardId && (
+                                        <p className="mt-1 text-xs text-muted-foreground">Cartão {activity.cardId}</p>
+                                      )}
+                                    </div>
+                                    <div className="flex-shrink-0">
+                                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-[#00D084]/20 text-[#00D084]">
+                                        {activity.hours.toFixed(1)}h
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="rounded-lg border border-border bg-[#2a3a4f] p-3 text-sm text-muted-foreground">
+                                  Nenhuma atividade encontrada para este dia.
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="tasks" className="space-y-6">
+                  <Card className="bg-card border-border">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-lg text-foreground">
+                        <ClipboardList className="h-5 w-5 text-primary" />
+                        Criar Tarefas
+                      </CardTitle>
+                      <CardDescription>
+                        Uma tarefa por título único do CSV, mantendo exatamente o contrato de criação em lote.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-5">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="project-id">project_id</Label>
+                          <Input id="project-id" inputMode="numeric" value={taskDefaults.projectId} onChange={(event) => updateTaskDefault("projectId", event.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="assigned-to-id">assigned_to_id</Label>
+                          <Input id="assigned-to-id" inputMode="numeric" value={taskDefaults.assignedToId} onChange={(event) => updateTaskDefault("assignedToId", event.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>tracker_id</Label>
+                          <Select value={taskDefaults.trackerId} onValueChange={(value) => updateTaskDefault("trackerId", value)}>
+                            <SelectTrigger className="w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {trackerOptions.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>{option.label} ({option.value})</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="start-date">start_date</Label>
+                          <Input id="start-date" type="date" value={taskDefaults.startDate} onChange={(event) => updateTaskDefault("startDate", event.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="due-date">due_date</Label>
+                          <Input id="due-date" type="date" value={taskDefaults.dueDate} onChange={(event) => updateTaskDefault("dueDate", event.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="status-id">status_id</Label>
+                          <Input id="status-id" inputMode="numeric" value={taskDefaults.statusId} onChange={(event) => updateTaskDefault("statusId", event.target.value)} />
+                        </div>
+                        <div className="space-y-2 sm:col-span-2 xl:col-span-1">
+                          <Label htmlFor="fixed-version-name">fixed_version_name</Label>
+                          <Input id="fixed-version-name" value={taskDefaults.fixedVersionName} onChange={(event) => updateTaskDefault("fixedVersionName", event.target.value)} />
+                        </div>
+                        <div className="space-y-2 sm:col-span-2">
+                          <Label htmlFor="description">description</Label>
+                          <Textarea id="description" value={taskDefaults.description} onChange={(event) => updateTaskDefault("description", event.target.value)} />
+                        </div>
+                      </div>
+
+                      <div className="rounded-lg border border-border bg-[#1a2332]/50 p-4">
+                        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-medium text-foreground">Títulos encontrados</p>
+                            <p className="text-xs text-muted-foreground">{uniqueTaskTitles.length} tarefa(s) serão geradas.</p>
+                          </div>
+                          <Badge variant="outline">{report.importedMonth}</Badge>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {uniqueTaskTitles.map((title) => (
+                            <Badge key={title} variant="secondary" className="max-w-full whitespace-normal text-left">
+                              {title}
+                            </Badge>
                           ))}
                         </div>
-                        <div className="mt-2 grid grid-cols-7 gap-2">
-                          {calendarCells.map((date, idx) => {
-                            if (!date) return <div key={`empty-${idx}`} className="min-h-16" />;
+                      </div>
+                    </CardContent>
+                  </Card>
 
-                            const summary = summaryByDate.get(date);
-                            const dayNumber = Number(date.slice(-2));
-                            const isWeekend = !isBusinessDay(date);
-                            const isSelected = selectedSummary?.date === date;
+                  <Card className="bg-card border-border">
+                    <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <CardTitle className="flex items-center gap-2 text-lg text-foreground">
+                          <FileJson className="h-5 w-5 text-primary" />
+                          JSON para Redmine
+                        </CardTitle>
+                        <CardDescription>Saída com contrato exato de criação de tarefas.</CardDescription>
+                      </div>
+                      <Button type="button" variant="outline" size="sm" onClick={() => copyJson(tasksJsonText, "tasks")}>
+                        <Copy className="h-4 w-4" />
+                        {copiedTarget === "tasks" ? "Copiado" : "Copiar JSON"}
+                      </Button>
+                    </CardHeader>
+                    <CardContent>
+                      <pre data-testid="tasks-json" className="max-h-[420px] overflow-auto rounded-lg border border-border bg-[#0f172a] p-4 text-xs text-foreground">
+                        {tasksJsonText}
+                      </pre>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
 
-                            if (!summary) {
-                              return (
-                                <div
-                                  key={date}
-                                  className="min-h-16 rounded-lg border border-border/60 bg-[#1a2332]/30 p-2 text-left opacity-60"
-                                >
-                                  <p className="text-sm font-semibold text-muted-foreground">{dayNumber}</p>
-                                  {isWeekend && <p className="mt-1 text-[11px] text-muted-foreground">opcional</p>}
-                                </div>
-                              );
-                            }
-
-                            const status = getDailyStatus(summary.totalHours);
-
-                            return (
-                              <button
-                                key={date}
-                                type="button"
-                                onClick={() => setSelectedDate(date)}
-                                aria-label={`${formatLocalDate(date)} ${summary.totalHours.toFixed(1)}h ${summary.isMissing ? "ausente" : summary.isBusinessDay ? "dia útil" : "hora extra"}`}
-                                className={`min-h-16 rounded-lg border p-2 text-left transition-colors ${
-                                  isSelected
-                                    ? "border-primary bg-[#00D084]/10"
-                                    : summary.isMissing
-                                      ? "border-[#FF6B5B]/30 bg-[#FF6B5B]/10 hover:bg-[#FF6B5B]/15"
-                                      : !summary.isBusinessDay
-                                        ? "border-[#FFB020]/40 bg-[#FFB020]/10 hover:bg-[#FFB020]/15"
-                                        : "border-border bg-[#1a2332]/50 hover:bg-[#3a4a5f]/50"
-                                }`}
-                                aria-pressed={isSelected}
-                              >
-                                <div className="flex items-center justify-between gap-1">
-                                  <span className="text-sm font-semibold text-foreground">{dayNumber}</span>
-                                  {getStatusIcon(status)}
-                                </div>
-                                <p className="mt-1 text-xs text-muted-foreground">{summary.totalHours.toFixed(1)}h</p>
-                                <p className={`mt-1 w-fit rounded-full border px-1.5 py-0.5 text-[11px] font-medium ${getStatusClass(status)}`}>
-                                  {summary.isMissing ? "ausente" : summary.isBusinessDay ? "dia útil" : "extra"}
-                                </p>
-                              </button>
-                            );
-                          })}
+                <TabsContent value="time" className="space-y-6">
+                  <Card className="bg-card border-border">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-lg text-foreground">
+                        <Clock3 className="h-5 w-5 text-primary" />
+                        Registrar Tempo
+                      </CardTitle>
+                      <CardDescription>
+                        Selecione um cartão do CSV e gere o array puro de time entries.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-5">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                          <Label>ID do cartão</Label>
+                          <Select value={selectedCardId || "no-card"} onValueChange={(value) => handleCardChange(value === "no-card" ? "" : value)} disabled={report.cardIds.length === 0}>
+                            <SelectTrigger className="w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {report.cardIds.length === 0 ? (
+                                <SelectItem value="no-card">Sem cartão no CSV</SelectItem>
+                              ) : (
+                                report.cardIds.map((cardId) => (
+                                  <SelectItem key={cardId} value={cardId}>Cartão {cardId}</SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="issue-id">issue_id</Label>
+                          <Input id="issue-id" inputMode="numeric" value={issueId} onChange={(event) => setIssueId(event.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>activity_id padrão</Label>
+                          <Select value={defaultActivityId} onValueChange={handleDefaultActivityChange}>
+                            <SelectTrigger className="w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {activityOptions.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>{option.label} ({option.value})</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
 
-                      {selectedSummary && (
-                        <div className={`rounded-lg border-2 p-4 ${getStatusClass(getDailyStatus(selectedSummary.totalHours))}`}>
-                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                            <div>
-                              <h2 className="text-lg font-semibold text-foreground">
-                                {formatLocalDate(selectedSummary.date, {
-                                  weekday: "long",
-                                  year: "numeric",
-                                  month: "long",
-                                  day: "numeric",
-                                })}
-                              </h2>
-                              <p className="mt-1 text-sm text-muted-foreground">
-                                {selectedSummary.totalHours.toFixed(1)}h lançadas de {DAILY_TARGET_HOURS.toFixed(1)}h esperadas.
-                              </p>
-                              {selectedSummary.isMissing && (
-                                <p className="mt-1 text-sm text-[#FF6B5B]">Sem registro no CSV.</p>
-                              )}
-                              {!selectedSummary.isBusinessDay && (
-                                <p className="mt-1 text-sm text-[#FFB020]">Hora extra, não obrigatória.</p>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                              {getStatusIcon(getDailyStatus(selectedSummary.totalHours))}
-                              <span>{getStatusLabel(selectedSummary)}</span>
-                            </div>
-                          </div>
+                      {report.cardIds.length === 0 ? (
+                        <Alert className="border-[#FFB020]/40 bg-[#FFB020]/10 text-[#FFB020]">
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertDescription>
+                            O CSV não trouxe ID do cartão. O JSON continua válido como array vazio até você adicionar registros manualmente.
+                          </AlertDescription>
+                        </Alert>
+                      ) : null}
 
-                          {getDailyStatus(selectedSummary.totalHours) !== "complete" && (
-                            <p className="mt-4 rounded-lg bg-[#1a2332]/60 p-3 text-sm text-muted-foreground">
-                              {selectedSummary.isMissing
-                                ? "Inclua este dia no BusinessMap e exporte novamente o CSV após corrigir o lançamento."
-                                : "Revise este dia no BusinessMap e exporte novamente o CSV após corrigir o lançamento."}
-                            </p>
-                          )}
-
-                          <div className="mt-4 space-y-3">
-                            {selectedSummary.activities.length > 0 ? (
-                              selectedSummary.activities.map((activity, actIdx) => (
-                                <div key={actIdx} className="flex items-start justify-between gap-4 rounded-lg border border-border bg-[#2a3a4f] p-3">
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium text-foreground">{activity.title}</p>
-                                  </div>
-                                  <div className="flex-shrink-0">
-                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-[#00D084]/20 text-[#00D084]">
-                                      {activity.hours.toFixed(1)}h
-                                    </span>
-                                  </div>
-                                </div>
-                              ))
-                            ) : (
-                              <div className="rounded-lg border border-border bg-[#2a3a4f] p-3 text-sm text-muted-foreground">
-                                Nenhuma atividade encontrada para este dia.
-                              </div>
-                            )}
+                      <div className="space-y-3">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-foreground">Registros de tempo</p>
+                            <p className="text-xs text-muted-foreground">{timeEntries.length} registro(s) no JSON.</p>
                           </div>
+                          <Button type="button" size="sm" onClick={addTimeEntry}>
+                            <Plus className="h-4 w-4" />
+                            Adicionar Registro
+                          </Button>
                         </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+
+                        {timeEntries.length === 0 ? (
+                          <div className="rounded-lg border border-dashed border-border bg-[#1a2332]/40 p-6 text-center text-sm text-muted-foreground">
+                            Nenhum registro carregado para este cartão.
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {timeEntries.map((entry, index) => (
+                              <div key={`${entry.spentOn}-${index}`} className="rounded-lg border border-border bg-[#1a2332]/50 p-4">
+                                <div className="grid grid-cols-1 gap-3 md:grid-cols-[0.8fr_1fr_1.2fr_2fr_auto] md:items-end">
+                                  <div className="space-y-2">
+                                    <Label htmlFor={`hours-${index}`}>hours</Label>
+                                    <Input id={`hours-${index}`} inputMode="decimal" value={entry.hours} onChange={(event) => updateTimeEntry(index, "hours", event.target.value)} />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label htmlFor={`spent-on-${index}`}>spent_on</Label>
+                                    <Input id={`spent-on-${index}`} type="date" value={entry.spentOn} onChange={(event) => updateTimeEntry(index, "spentOn", event.target.value)} />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>activity_id</Label>
+                                    <Select value={entry.activityId} onValueChange={(value) => updateTimeEntry(index, "activityId", value)}>
+                                      <SelectTrigger className="w-full">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {activityOptions.map((option) => (
+                                          <SelectItem key={option.value} value={option.value}>{option.label} ({option.value})</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label htmlFor={`comments-${index}`}>comments</Label>
+                                    <Input id={`comments-${index}`} value={entry.comments} onChange={(event) => updateTimeEntry(index, "comments", event.target.value)} />
+                                  </div>
+                                  <Button type="button" variant="outline" size="icon" aria-label="Remover registro" onClick={() => removeTimeEntry(index)}>
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="bg-card border-border">
+                    <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <CardTitle className="flex items-center gap-2 text-lg text-foreground">
+                          <FileJson className="h-5 w-5 text-primary" />
+                          JSON para Redmine - Time Entries
+                        </CardTitle>
+                        <CardDescription>Saída como array raiz, sem wrapper.</CardDescription>
+                      </div>
+                      <Button type="button" variant="outline" size="sm" onClick={() => copyJson(timeEntriesJsonText, "time")}>
+                        <Copy className="h-4 w-4" />
+                        {copiedTarget === "time" ? "Copiado" : "Copiar JSON"}
+                      </Button>
+                    </CardHeader>
+                    <CardContent>
+                      <pre data-testid="time-entries-json" className="max-h-[420px] overflow-auto rounded-lg border border-border bg-[#0f172a] p-4 text-xs text-foreground">
+                        {timeEntriesJsonText}
+                      </pre>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </Tabs>
             ) : (
               <div className="space-y-6">
                 <Card className="border-primary/30 bg-[#00D084]/10">
