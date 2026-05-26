@@ -1034,8 +1034,8 @@ Danilo	987605	[313-Maestro] Refinamento	"#inic0004688,#bbseg"	2026-04-01	2.000`}
                 </TabsContent>
 
                 <TabsContent value="tasks" className="space-y-6">
-                  <Card className="bg-card border-border">
-                    <CardHeader>
+                  <Card className="border-[#506176] bg-card shadow-sm">
+                    <CardHeader className="border-b border-border/80">
                       <CardTitle className="flex items-center gap-2 text-lg text-foreground">
                         <ClipboardList className="h-5 w-5 text-primary" />
                         Criar Tarefas
@@ -1044,55 +1044,60 @@ Danilo	987605	[313-Maestro] Refinamento	"#inic0004688,#bbseg"	2026-04-01	2.000`}
                         Uma tarefa por título único do CSV, mantendo exatamente o contrato de criação em lote.
                       </CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-5">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="project-id">project_id</Label>
+                    <CardContent className="space-y-6 pt-6">
+                      <section className="rounded-lg border border-[#506176] bg-[#1a2332]/70 p-4">
+                        <div className="mb-4">
+                          <h3 className="text-sm font-semibold text-foreground">Dados padrão da tarefa</h3>
+                        </div>
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                          <div className="space-y-2">
+                            <Label htmlFor="project-id" className="text-xs font-semibold text-muted-foreground">Projeto (project_id)</Label>
                           <Input id="project-id" inputMode="numeric" value={taskDefaults.projectId} onChange={(event) => updateTaskDefault("projectId", event.target.value)} />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="assigned-to-id">assigned_to_id</Label>
+                          <Label htmlFor="assigned-to-id" className="text-xs font-semibold text-muted-foreground">Responsável (assigned_to_id)</Label>
                           <Input id="assigned-to-id" inputMode="numeric" value={taskDefaults.assignedToId} onChange={(event) => updateTaskDefault("assignedToId", event.target.value)} />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="start-date">start_date</Label>
+                          <Label htmlFor="start-date" className="text-xs font-semibold text-muted-foreground">Início (start_date)</Label>
                           <Input id="start-date" type="date" value={taskDefaults.startDate} onChange={(event) => updateTaskDefault("startDate", event.target.value)} />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="due-date">due_date</Label>
+                          <Label htmlFor="due-date" className="text-xs font-semibold text-muted-foreground">Prazo (due_date)</Label>
                           <Input id="due-date" type="date" value={taskDefaults.dueDate} onChange={(event) => updateTaskDefault("dueDate", event.target.value)} />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="status-id">status_id</Label>
+                          <Label htmlFor="status-id" className="text-xs font-semibold text-muted-foreground">Status (status_id)</Label>
                           <Input id="status-id" inputMode="numeric" value={taskDefaults.statusId} onChange={(event) => updateTaskDefault("statusId", event.target.value)} />
                         </div>
                         <div className="space-y-2 sm:col-span-2 xl:col-span-1">
-                          <Label htmlFor="fixed-version-name">fixed_version_name</Label>
+                          <Label htmlFor="fixed-version-name" className="text-xs font-semibold text-muted-foreground">Sprint/Versão (fixed_version_name)</Label>
                           <Input id="fixed-version-name" value={taskDefaults.fixedVersionName} onChange={(event) => updateTaskDefault("fixedVersionName", event.target.value)} />
                         </div>
                         <div className="space-y-2 sm:col-span-2">
-                          <Label htmlFor="description">description</Label>
-                          <Textarea id="description" value={taskDefaults.description} onChange={(event) => updateTaskDefault("description", event.target.value)} />
+                          <Label htmlFor="description" className="text-xs font-semibold text-muted-foreground">Descrição (description)</Label>
+                          <Textarea id="description" className="min-h-24" value={taskDefaults.description} onChange={(event) => updateTaskDefault("description", event.target.value)} />
                         </div>
                       </div>
+                      </section>
 
-                      <div className="rounded-lg border border-border bg-[#1a2332]/50 p-4">
+                      <section className="rounded-lg border border-[#506176] bg-[#1a2332]/70 p-4">
                         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                           <div>
-                            <p className="text-sm font-medium text-foreground">Títulos encontrados</p>
+                            <h3 className="text-sm font-semibold text-foreground">Títulos encontrados</h3>
                             <p className="text-xs text-muted-foreground">{uniqueTaskTitles.length} tarefa(s) serão geradas.</p>
                           </div>
-                          <Badge variant="outline">{report.importedMonth}</Badge>
+                          <Badge variant="outline" className="border-primary/40 bg-primary/10 text-primary">{report.importedMonth}</Badge>
                         </div>
                         <div className="space-y-3">
                           {uniqueTaskTitles.map((title) => (
-                            <div key={title} className="grid grid-cols-1 gap-3 rounded-lg border border-border bg-[#2a3a4f] p-3 lg:grid-cols-[minmax(0,1fr)_180px_180px_150px] lg:items-end">
-                              <div className="min-w-0">
-                                <Label className="text-xs text-muted-foreground">subject</Label>
-                                <p className="mt-1 text-sm font-medium text-foreground">{title}</p>
+                            <div key={title} className="grid grid-cols-1 gap-4 rounded-lg border border-[#607188] bg-[#25364b] p-4 shadow-sm lg:grid-cols-[minmax(0,1fr)_190px_190px_160px] lg:items-end">
+                              <div className="min-w-0 lg:pb-1">
+                                <Label className="text-xs font-semibold text-muted-foreground">Assunto (subject)</Label>
+                                <p className="mt-2 break-words text-sm font-semibold leading-5 text-foreground">{title}</p>
                               </div>
                               <div className="space-y-2">
-                                <Label>tracker_id</Label>
+                                <Label className="text-xs font-semibold text-muted-foreground">Tipo (tracker_id)</Label>
                                 <Select value={taskConfigs[title]?.trackerId ?? getDefaultTaskConfig(title).trackerId} onValueChange={(value) => updateTaskConfig(title, "trackerId", value)}>
                                   <SelectTrigger className="w-full">
                                     <SelectValue />
@@ -1105,7 +1110,7 @@ Danilo	987605	[313-Maestro] Refinamento	"#inic0004688,#bbseg"	2026-04-01	2.000`}
                                 </Select>
                               </div>
                               <div className="space-y-2">
-                                <Label>activity_id</Label>
+                                <Label className="text-xs font-semibold text-muted-foreground">Atividade (activity_id)</Label>
                                 <Select value={taskConfigs[title]?.activityId ?? getDefaultTaskConfig(title).activityId} onValueChange={(value) => updateTaskConfig(title, "activityId", value)}>
                                   <SelectTrigger className="w-full">
                                     <SelectValue />
@@ -1118,32 +1123,32 @@ Danilo	987605	[313-Maestro] Refinamento	"#inic0004688,#bbseg"	2026-04-01	2.000`}
                                 </Select>
                               </div>
                               <div className="space-y-2">
-                                <Label htmlFor={`issue-${normalizeTitle(title)}`}>issue_id</Label>
-                                <Input id={`issue-${normalizeTitle(title)}`} inputMode="numeric" placeholder="após Cecis" value={taskConfigs[title]?.issueId ?? ""} onChange={(event) => updateTaskConfig(title, "issueId", event.target.value)} />
+                                <Label htmlFor={`issue-${normalizeTitle(title)}`} className="text-xs font-semibold text-muted-foreground">Issue pós-Cecis (issue_id)</Label>
+                                <Input id={`issue-${normalizeTitle(title)}`} inputMode="numeric" placeholder="Opcional" value={taskConfigs[title]?.issueId ?? ""} onChange={(event) => updateTaskConfig(title, "issueId", event.target.value)} />
                               </div>
                             </div>
                           ))}
                         </div>
-                      </div>
+                      </section>
                     </CardContent>
                   </Card>
 
-                  <Card className="bg-card border-border">
-                    <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <Card className="border-[#506176] bg-card shadow-sm">
+                    <CardHeader className="flex flex-col gap-3 border-b border-border/80 sm:flex-row sm:items-center sm:justify-between">
                       <div>
                         <CardTitle className="flex items-center gap-2 text-lg text-foreground">
                           <FileJson className="h-5 w-5 text-primary" />
-                          JSON para Cecis - Criar Tarefas
+                          JSON para Cecis
                         </CardTitle>
-                        <CardDescription>Saída com contrato exato de criação de tarefas.</CardDescription>
+                        <CardDescription>Saída para criar tarefas, preservando o contrato exato do Cecis.</CardDescription>
                       </div>
                       <Button type="button" variant="outline" size="sm" onClick={() => copyJson(tasksJsonText, "tasks")}>
                         <Copy className="h-4 w-4" />
                         {copiedTarget === "tasks" ? "Copiado" : "Copiar JSON"}
                       </Button>
                     </CardHeader>
-                    <CardContent>
-                      <pre data-testid="tasks-json" className="max-h-[420px] overflow-auto rounded-lg border border-border bg-[#0f172a] p-4 text-xs text-foreground">
+                    <CardContent className="pt-6">
+                      <pre data-testid="tasks-json" className="max-h-[420px] overflow-auto rounded-lg border border-[#506176] bg-[#0b1324] p-4 text-xs leading-relaxed text-foreground shadow-inner">
                         {tasksJsonText}
                       </pre>
                     </CardContent>
