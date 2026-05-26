@@ -1,4 +1,4 @@
-import { AlertCircle, CheckCircle2, Info, TrendingUp, type LucideIcon } from "lucide-react";
+import { AlertCircle, CalendarDays, CheckCircle2, Info, TrendingUp, type LucideIcon } from "lucide-react";
 import type { TimesheetStatus } from "@/features/timesheet/types";
 
 interface StatusDefinition {
@@ -50,6 +50,14 @@ export const statusMap: Record<TimesheetStatus, StatusDefinition> = {
     badgeClassName: "border-warning/40 bg-warning/10 text-warning",
     panelClassName: "border-warning/40 bg-warning/10",
     metricClassName: "border-warning/40 bg-warning/10 text-warning",
+  },
+  holiday: {
+    label: "Feriado",
+    Icon: CalendarDays,
+    iconClassName: "text-[#D8B4FE]",
+    badgeClassName: "border-[#A855F7]/40 bg-[#A855F7]/15 text-[#E9D5FF]",
+    panelClassName: "border-[#A855F7]/40 bg-[#A855F7]/15",
+    metricClassName: "border-[#A855F7]/40 bg-[#A855F7]/15 text-[#E9D5FF]",
   },
   invalid: {
     label: "Inválido",

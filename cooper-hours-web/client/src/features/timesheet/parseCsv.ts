@@ -1,3 +1,4 @@
+import { getNationalHoliday, getNationalHolidaysForMonth } from "./holidays";
 import { getBusinessDaysForMonth, isBusinessDay } from "./report";
 import type { DailySummary, TimesheetReport } from "./types";
 
@@ -64,6 +65,20 @@ function findHeaderIndex(headers: string[], ...possibleNames: string[]): number 
     }
   }
   return -1;
+}
+
+function createDailySummary(date: string, isMissing: boolean): DailySummary {
+  const holiday = getNationalHoliday(date);
+
+  return {
+    date,
+    activities: [],
+    totalHours: 0,
+    isBusinessDay: isBusinessDay(date),
+    isMissing,
+    isHoliday: holiday !== null,
+    holidayName: holiday?.name,
+  };
 }
 
 export function processCsv(csvText: string): TimesheetReport {
@@ -136,13 +151,7 @@ export function processCsv(csvText: string): TimesheetReport {
       duplicateKeys.add(duplicateKey);
 
       if (!dailySummaries.has(date)) {
-        dailySummaries.set(date, {
-          date,
-          activities: [],
-          totalHours: 0,
-          isBusinessDay: isBusinessDay(date),
-          isMissing: false,
-        });
+        dailySummaries.set(date, createDailySummary(date, false));
       }
 
       const summary = dailySummaries.get(date)!;
@@ -173,17 +182,17 @@ export function processCsv(csvText: string): TimesheetReport {
   const businessDays = getBusinessDaysForMonth(importedMonth);
   const missingBusinessDays = businessDays.filter((date) => !dailySummaries.has(date));
   const weekendOrExtraDays = Array.from(dailySummaries.values())
-    .filter((summary) => !summary.isBusinessDay)
+    .filter((summary) => !summary.isBusinessDay && !summary.isHoliday)
     .map((summary) => summary.date);
 
   missingBusinessDays.forEach((date) => {
-    dailySummaries.set(date, {
-      date,
-      activities: [],
-      totalHours: 0,
-      isBusinessDay: true,
-      isMissing: true,
-    });
+    dailySummaries.set(date, createDailySummary(date, true));
+  });
+
+  getNationalHolidaysForMonth(importedMonth).forEach((holiday) => {
+    if (!dailySummaries.has(holiday.date)) {
+      dailySummaries.set(holiday.date, createDailySummary(holiday.date, false));
+    }
   });
 
   const sortedSummaries = Array.from(dailySummaries.values())
@@ -200,7 +209,7 @@ export function processCsv(csvText: string): TimesheetReport {
     duplicateLineCount,
     rawLineCount: lines.length - 1,
     validLineCount,
-    importedDayCount: dailySummaries.size - missingBusinessDays.length,
+    importedDayCount: Array.from(importedDates).length,
     importedMonth,
     userName: importedUsers.size === 1 ? Array.from(importedUsers)[0] : null,
     businessDayCount: businessDays.length,

@@ -10,6 +10,8 @@ export interface DailySummary {
   totalHours: number;
   isBusinessDay: boolean;
   isMissing: boolean;
+  isHoliday: boolean;
+  holidayName?: string;
 }
 
 export interface TimesheetReport {
@@ -62,4 +64,4 @@ export interface TimeEntryDraft {
 }
 
 export type DailyStatus = "complete" | "pending" | "over";
-export type TimesheetStatus = DailyStatus | "missing" | "optional" | "invalid" | "neutral";
+export type TimesheetStatus = DailyStatus | "missing" | "optional" | "holiday" | "invalid" | "neutral";

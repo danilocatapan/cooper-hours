@@ -3,7 +3,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { DAILY_TARGET_HOURS } from "../constants";
-import type { DailySummary, TimesheetReport } from "../types";
+import type { DailySummary, TimesheetReport, TimesheetStatus } from "../types";
 import {
   formatLocalDate,
   getDailyStatus,
@@ -106,7 +106,7 @@ export function ConferencePanel({
             </div>
             <div className="mt-2 grid grid-cols-7 gap-2">
               {calendarCells.map((date, idx) => {
-                if (!date) return <div key={`empty-${idx}`} className="min-h-16" />;
+                if (!date) return <div key={`empty-${idx}`} className="min-h-20" />;
 
                 const summary = summaryByDate.get(date);
                 const dayNumber = Number(date.slice(-2));
@@ -115,7 +115,7 @@ export function ConferencePanel({
 
                 if (!summary) {
                   return (
-                    <div key={date} className="min-h-16 rounded-lg border border-border/60 bg-surface-subtle p-2 text-left opacity-60">
+                    <div key={date} className="min-h-20 rounded-lg border border-border/60 bg-surface-subtle p-2 text-left opacity-60">
                       <p className="text-sm font-semibold text-muted-foreground">{dayNumber}</p>
                       {weekend && <p className="mt-1 text-[11px] text-muted-foreground">opcional</p>}
                     </div>
@@ -123,7 +123,7 @@ export function ConferencePanel({
                 }
 
                 const dailyStatus = getDailyStatus(summary.totalHours);
-                const visualStatus = summary.isMissing ? "missing" : !summary.isBusinessDay ? "optional" : dailyStatus;
+                const visualStatus: TimesheetStatus = summary.isHoliday ? "holiday" : summary.isMissing ? "missing" : !summary.isBusinessDay ? "optional" : dailyStatus;
                 const Icon = statusMap[visualStatus].Icon;
 
                 return (
@@ -131,9 +131,9 @@ export function ConferencePanel({
                     key={date}
                     type="button"
                     onClick={() => onSelectDate(date)}
-                    aria-label={`${formatLocalDate(date)} ${summary.totalHours.toFixed(1)}h ${summary.isMissing ? "ausente" : summary.isBusinessDay ? "dia útil" : "hora extra"}`}
+                    aria-label={`${formatLocalDate(date)} ${summary.totalHours.toFixed(1)}h ${summary.isHoliday ? `feriado nacional ${summary.holidayName ?? ""}` : summary.isMissing ? "ausente" : summary.isBusinessDay ? "dia útil" : "hora extra"}`}
                     className={cn(
-                      "min-h-16 rounded-lg border p-2 text-left transition-colors focus-visible:ring-[3px] focus-visible:ring-selection/40",
+                      "min-h-20 rounded-lg border p-2 text-left transition-colors focus-visible:ring-[3px] focus-visible:ring-selection/40",
                       statusMap[visualStatus].panelClassName,
                       isSelected && "relative z-10 border-selection ring-2 ring-selection/70",
                       !isSelected && "hover:bg-surface-raised"
@@ -146,8 +146,13 @@ export function ConferencePanel({
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">{summary.totalHours.toFixed(1)}h</p>
                     <StatusBadge status={visualStatus}>
-                      {summary.isMissing ? "ausente" : summary.isBusinessDay ? "dia útil" : "extra"}
+                      {summary.isHoliday ? "feriado" : summary.isMissing ? "ausente" : summary.isBusinessDay ? "dia útil" : "extra"}
                     </StatusBadge>
+                    {summary.isHoliday && summary.holidayName && (
+                      <p className="mt-1 line-clamp-2 text-[11px] leading-tight text-[#E9D5FF]">
+                        {summary.holidayName}
+                      </p>
+                    )}
                   </button>
                 );
               })}
@@ -163,8 +168,9 @@ export function ConferencePanel({
 
 function DailyDetail({ summary }: { summary: DailySummary }) {
   const dailyStatus = getDailyStatus(summary.totalHours);
-  const visualStatus = summary.isMissing ? "missing" : !summary.isBusinessDay ? "optional" : dailyStatus;
+  const visualStatus: TimesheetStatus = summary.isHoliday ? "holiday" : summary.isMissing ? "missing" : !summary.isBusinessDay ? "optional" : dailyStatus;
   const Icon = statusMap[visualStatus].Icon;
+  const expectedHours = summary.isHoliday || !summary.isBusinessDay ? 0 : DAILY_TARGET_HOURS;
 
   return (
     <div className={cn("rounded-lg border-2 p-4", statusMap[visualStatus].panelClassName)}>
@@ -179,10 +185,15 @@ function DailyDetail({ summary }: { summary: DailySummary }) {
             })}
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {summary.totalHours.toFixed(1)}h lançadas de {DAILY_TARGET_HOURS.toFixed(1)}h esperadas.
+            {summary.totalHours.toFixed(1)}h lançadas de {expectedHours.toFixed(1)}h esperadas.
           </p>
+          {summary.isHoliday && (
+            <p className="mt-1 text-sm text-[#E9D5FF]">
+              {summary.holidayName ?? "Feriado nacional"}. Sem lançamento obrigatório.
+            </p>
+          )}
           {summary.isMissing && <p className="mt-1 text-sm text-danger">Sem registro no CSV.</p>}
-          {!summary.isBusinessDay && <p className="mt-1 text-sm text-warning">Hora extra, não obrigatória.</p>}
+          {!summary.isHoliday && !summary.isBusinessDay && <p className="mt-1 text-sm text-warning">Hora extra, não obrigatória.</p>}
         </div>
         <div className="flex items-center gap-2 text-sm font-medium text-foreground">
           <Icon className={cn("h-5 w-5", statusMap[visualStatus].iconClassName)} />
@@ -190,7 +201,11 @@ function DailyDetail({ summary }: { summary: DailySummary }) {
         </div>
       </div>
 
-      {dailyStatus !== "complete" && (
+      {summary.isHoliday ? (
+        <p className="mt-4 rounded-lg bg-background/60 p-3 text-sm text-muted-foreground">
+          Feriado nacional identificado automaticamente e fora da meta obrigatória de 8h.
+        </p>
+      ) : dailyStatus !== "complete" && (
         <p className="mt-4 rounded-lg bg-background/60 p-3 text-sm text-muted-foreground">
           {summary.isMissing
             ? "Inclua este dia no BusinessMap e exporte novamente o CSV após corrigir o lançamento."

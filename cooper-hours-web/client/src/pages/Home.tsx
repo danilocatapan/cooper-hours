@@ -90,7 +90,8 @@ export default function Home() {
 
         setReport(processedReport);
         setSelectedDate(
-          processedReport.dailySummaries.find((summary) => !summary.isMissing)?.date
+          processedReport.dailySummaries.find((summary) => !summary.isMissing && summary.activities.length > 0)?.date
+          ?? processedReport.dailySummaries.find((summary) => !summary.isMissing)?.date
           ?? processedReport.dailySummaries[0]?.date
           ?? null
         );

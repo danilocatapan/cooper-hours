@@ -1,4 +1,5 @@
 import { DAILY_TARGET_HOURS, HOUR_TOLERANCE } from "./constants";
+import { isNationalHoliday } from "./holidays";
 import type { DailyStatus, DailySummary, TaskConfig, TimeEntryDraft, TimesheetReport } from "./types";
 
 export function normalizeTitle(value: string): string {
@@ -38,7 +39,7 @@ export function getDailyStatus(totalHours: number): DailyStatus {
 
 export function isBusinessDay(date: string): boolean {
   const dayOfWeek = new Date(`${date}T00:00:00`).getDay();
-  return dayOfWeek >= 1 && dayOfWeek <= 5;
+  return dayOfWeek >= 1 && dayOfWeek <= 5 && !isNationalHoliday(date);
 }
 
 export function getBusinessDaysForMonth(month: string): string[] {
@@ -73,6 +74,8 @@ export function formatLocalDate(date: string, options?: Intl.DateTimeFormatOptio
 }
 
 export function getStatusLabel(summary: DailySummary): string {
+  if (summary.isHoliday) return summary.holidayName ? `Feriado: ${summary.holidayName}` : "Feriado nacional";
+
   const status = getDailyStatus(summary.totalHours);
   const difference = Math.abs(summary.totalHours - DAILY_TARGET_HOURS);
 
