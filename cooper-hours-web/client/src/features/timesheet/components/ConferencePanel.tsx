@@ -1,6 +1,7 @@
 import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { DAILY_TARGET_HOURS } from "../constants";
 import type { DailySummary, TimesheetReport, TimesheetStatus } from "../types";
@@ -106,7 +107,7 @@ export function ConferencePanel({
             </div>
             <div className="mt-2 grid grid-cols-7 gap-2">
               {calendarCells.map((date, idx) => {
-                if (!date) return <div key={`empty-${idx}`} className="min-h-20" />;
+                if (!date) return <div key={`empty-${idx}`} className="h-20" />;
 
                 const summary = summaryByDate.get(date);
                 const dayNumber = Number(date.slice(-2));
@@ -115,7 +116,7 @@ export function ConferencePanel({
 
                 if (!summary) {
                   return (
-                    <div key={date} className="min-h-20 rounded-lg border border-border/60 bg-surface-subtle p-2 text-left opacity-60">
+                    <div key={date} className="h-20 overflow-hidden rounded-lg border border-border/60 bg-surface-subtle p-2 text-left opacity-60">
                       <p className="text-sm font-semibold text-muted-foreground">{dayNumber}</p>
                       {weekend && <p className="mt-1 text-[11px] text-muted-foreground">opcional</p>}
                     </div>
@@ -125,15 +126,16 @@ export function ConferencePanel({
                 const dailyStatus = getDailyStatus(summary.totalHours);
                 const visualStatus: TimesheetStatus = summary.isHoliday ? "holiday" : summary.isMissing ? "missing" : !summary.isBusinessDay ? "optional" : dailyStatus;
                 const Icon = statusMap[visualStatus].Icon;
+                const holidayTooltip = summary.isHoliday ? summary.holidayName ?? "Feriado nacional" : null;
 
-                return (
+                const dayButton = (
                   <button
                     key={date}
                     type="button"
                     onClick={() => onSelectDate(date)}
                     aria-label={`${formatLocalDate(date)} ${summary.totalHours.toFixed(1)}h ${summary.isHoliday ? `feriado nacional ${summary.holidayName ?? ""}` : summary.isMissing ? "ausente" : summary.isBusinessDay ? "dia útil" : "hora extra"}`}
                     className={cn(
-                      "min-h-20 rounded-lg border p-2 text-left transition-colors focus-visible:ring-[3px] focus-visible:ring-selection/40",
+                      "h-20 overflow-hidden rounded-lg border p-2 text-left transition-colors focus-visible:ring-[3px] focus-visible:ring-selection/40",
                       statusMap[visualStatus].panelClassName,
                       isSelected && "relative z-10 border-selection ring-2 ring-selection/70",
                       !isSelected && "hover:bg-surface-raised"
@@ -148,12 +150,18 @@ export function ConferencePanel({
                     <StatusBadge status={visualStatus}>
                       {summary.isHoliday ? "feriado" : summary.isMissing ? "ausente" : summary.isBusinessDay ? "dia útil" : "extra"}
                     </StatusBadge>
-                    {summary.isHoliday && summary.holidayName && (
-                      <p className="mt-1 line-clamp-2 text-[11px] leading-tight text-[#E9D5FF]">
-                        {summary.holidayName}
-                      </p>
-                    )}
                   </button>
+                );
+
+                if (!holidayTooltip) return dayButton;
+
+                return (
+                  <Tooltip key={date}>
+                    <TooltipTrigger asChild>{dayButton}</TooltipTrigger>
+                    <TooltipContent side="top" sideOffset={8} className="max-w-56 text-center">
+                      {holidayTooltip}
+                    </TooltipContent>
+                  </Tooltip>
                 );
               })}
             </div>

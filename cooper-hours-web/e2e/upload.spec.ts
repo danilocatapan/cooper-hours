@@ -400,7 +400,9 @@ test('national holiday without time is highlighted and excluded from missing day
   const holiday = page.getByRole('button', { name: /03\/04\/2026 0\.0h feriado nacional Paixão de Cristo/i });
   await expect(holiday).toBeVisible();
   await expect(holiday).toHaveClass(/bg-\[#A855F7\]\/15/);
-  await expect(holiday).toContainText('Paixão de Cristo');
+  await expect(holiday).not.toContainText('Paixão de Cristo');
+  await holiday.hover();
+  await expect(page.getByRole('tooltip')).toContainText('Paixão de Cristo');
 
   await holiday.click();
   await expect(page.getByText('Paixão de Cristo. Sem lançamento obrigatório.')).toBeVisible();
