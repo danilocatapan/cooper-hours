@@ -1,10 +1,41 @@
 import type { ChangeEvent, DragEvent } from "react";
-import { AlertCircle, Upload } from "lucide-react";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { AlertCircle, Info, Upload } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import type { TimesheetReport } from "../types";
 import { SectionCard } from "@/design-system/components/SectionCard";
+
+const requiredCsvFields = [
+  {
+    name: "Título",
+    description: "Descrição da tarefa como aparece no BusinessMap.",
+    example: "[Back] [Arquitetural] Replicação dos endpoints",
+  },
+  {
+    name: "Data",
+    description: "Dia do lançamento no formato YYYY-MM-DD.",
+    example: "2026-04-01",
+  },
+  {
+    name: "Tempo registrado soma",
+    description: "Horas trabalhadas no dia, aceitando ponto ou vírgula decimal.",
+    example: "5.000",
+  },
+];
+
+const csvExample = `Usuário\tID do cartão\tTítulo\tEtiquetas\tData\tTempo registrado soma
+Danilo\t893566\t[Back] [Arquitetural] Replicação dos endpoints\t"QualityBot,#inic0004688"\t2026-04-01\t5.000
+Danilo\t987589\t[313-Maestro] Ritos (Daily, Planning)\t"#inic0004688,#bbseg"\t2026-04-01\t1.000
+Danilo\t987605\t[313-Maestro] Refinamento\t"#inic0004688,#bbseg"\t2026-04-01\t2.000`;
 
 interface UploadPanelProps {
   isLoading: boolean;
@@ -105,36 +136,61 @@ export function UploadPanel({
           </Alert>
         )}
 
-        <Accordion type="single" collapsible className="rounded-lg border border-border bg-background/40 px-4">
-          <AccordionItem value="csv-format">
-            <AccordionTrigger>Formato do arquivo</AccordionTrigger>
-            <AccordionContent className="space-y-4">
-              <div>
-                <p className="mb-3 text-sm font-semibold text-foreground">Campos obrigatórios:</p>
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                  <li><strong className="text-foreground">Título</strong> - descrição da tarefa</li>
-                  <li><strong className="text-foreground">Data</strong> - formato YYYY-MM-DD</li>
-                  <li><strong className="text-foreground">Tempo registrado soma</strong> - horas trabalhadas, exemplo 5.000</li>
-                </ul>
-              </div>
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button type="button" variant="outline" className="w-full justify-between border-border bg-background/40 px-4">
+              <span className="inline-flex items-center gap-2">
+                <Info className="h-4 w-4 text-selection" />
+                Formato do arquivo
+              </span>
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-h-[calc(100vh-2rem)] overflow-y-auto border-border bg-card p-0 sm:max-w-3xl">
+            <DialogHeader className="border-b border-border px-5 py-4 pr-12 text-left sm:px-6 sm:pr-14">
+              <DialogTitle>Formato do arquivo CSV</DialogTitle>
+              <DialogDescription>
+                Confira se a exportação do BusinessMap inclui os campos abaixo antes de importar.
+              </DialogDescription>
+            </DialogHeader>
 
-              <div>
-                <p className="mb-3 text-sm font-semibold text-foreground">Exemplo de CSV:</p>
-                <div className="overflow-x-auto rounded bg-code p-3 text-xs font-mono text-muted-foreground">
-                  <div className="whitespace-pre-wrap break-words">
-{`Usuário	ID do cartão	Título	Etiquetas	Data	Tempo registrado soma
-Danilo	893566	[Back] [Arquitetural] Replicação dos endpoints	"QualityBot,#inic0004688"	2026-04-01	5.000
-Danilo	987589	[313-Maestro] Ritos (Daily, Planning)	"#inic0004688,#bbseg"	2026-04-01	1.000
-Danilo	987605	[313-Maestro] Refinamento	"#inic0004688,#bbseg"	2026-04-01	2.000`}
-                  </div>
+            <div className="space-y-5 px-5 pb-5 sm:px-6 sm:pb-6">
+              <section aria-labelledby="required-csv-fields">
+                <p id="required-csv-fields" className="mb-3 text-sm font-semibold text-foreground">
+                  Campos obrigatórios:
+                </p>
+                <div className="grid gap-3 md:grid-cols-3">
+                  {requiredCsvFields.map((field) => (
+                    <div key={field.name} className="rounded-lg border border-border bg-surface-subtle p-3">
+                      <p className="text-sm font-semibold text-foreground">{field.name}</p>
+                      <p className="mt-2 text-xs leading-5 text-muted-foreground">{field.description}</p>
+                      <p className="mt-3 rounded-md bg-background/70 px-2 py-1 font-mono text-[11px] text-foreground">
+                        {field.example}
+                      </p>
+                    </div>
+                  ))}
                 </div>
-                <p className="mt-2 text-xs text-muted-foreground">
+              </section>
+
+              <section aria-labelledby="csv-example">
+                <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                  <p id="csv-example" className="text-sm font-semibold text-foreground">
+                    Exemplo de CSV:
+                  </p>
+                  <p className="text-xs text-muted-foreground">Separado por tabulação no exemplo.</p>
+                </div>
+                <pre
+                  data-testid="csv-format-example"
+                  className="max-h-64 overflow-auto rounded-lg border border-surface-border bg-code p-4 text-xs leading-6 text-foreground shadow-inner"
+                >
+                  <code className="block min-w-max whitespace-pre">{csvExample}</code>
+                </pre>
+                <p className="mt-3 rounded-lg border border-selection/30 bg-selection/10 p-3 text-xs leading-5 text-foreground">
                   O arquivo pode ser separado por vírgula, ponto-e-vírgula ou tabulação.
                 </p>
-              </div>
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
+              </section>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </SectionCard>
   );

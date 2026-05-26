@@ -36,10 +36,13 @@ test('initial screen is usable and free of legacy debug hooks', async ({ page })
   expect(await debugEndpoint.text()).not.toContain('Debug Collector initialized');
 });
 
-test('CSV format instructions can be expanded', async ({ page }) => {
+test('CSV format instructions open in a readable modal', async ({ page }) => {
   await page.getByRole('button', { name: /Formato do arquivo/i }).click();
+  await expect(page.getByRole('dialog', { name: /Formato do arquivo CSV/i })).toBeVisible();
   await expect(page.getByText('Campos obrigatórios:')).toBeVisible();
   await expect(page.getByText('Exemplo de CSV:')).toBeVisible();
+  await expect(page.getByText('Tempo registrado soma').first()).toBeVisible();
+  await expect(page.getByTestId('csv-format-example')).toBeVisible();
 });
 
 test('upload CSV and show full report flow', async ({ page }) => {
@@ -224,10 +227,53 @@ test('below and above target statuses are clearly differentiated', async ({ page
   });
 
   await page.getByRole('button', { name: /01\/04\/2026/i }).click();
+  await expect(page.getByRole('button', { name: /01\/04\/2026/i })).toHaveClass(/border-selection/);
+  await expect(page.getByRole('button', { name: /01\/04\/2026/i })).toHaveClass(/bg-danger\/10/);
   await expect(page.getByText('Pendente: faltam 1.0h')).toBeVisible();
   await page.getByRole('button', { name: /02\/04\/2026/i }).click();
+  await expect(page.getByRole('button', { name: /02\/04\/2026/i })).toHaveClass(/border-selection/);
+  await expect(page.getByRole('button', { name: /02\/04\/2026/i })).toHaveClass(/bg-warning\/10/);
+  await expect(page.getByRole('button', { name: /03\/04\/2026/i })).toHaveClass(/border-success\/30/);
+  await expect(page.getByRole('button', { name: /03\/04\/2026/i })).toHaveClass(/bg-success\/10/);
   await expect(page.getByText('Acima da meta: +1.0h')).toBeVisible();
   await expect(page.getByText('1/22 dias úteis fechados com 8h.')).toBeVisible();
+});
+
+test('mobile layout keeps calendar and CSV modal within the viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  const csv = buildCsv([
+    row('2026-04-01', '7.000', 'Mobile pendente'),
+    row('2026-04-02', '8.000', 'Mobile completo'),
+    row('2026-04-03', '9.000', 'Mobile acima'),
+    row('2026-04-06', '8.000', 'Mobile extra 1'),
+    row('2026-04-07', '8.000', 'Mobile extra 2'),
+    row('2026-04-08', '8.000', 'Mobile extra 3'),
+  ]);
+
+  await page.locator('input[type="file"]').setInputFiles({
+    name: 'mobile.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from(csv, 'utf8'),
+  });
+
+  await expect(page.getByText('Conferência diária')).toBeVisible();
+  await expect(page.getByRole('button', { name: /01\/04\/2026/i })).toBeVisible();
+
+  let hasHorizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
+  expect(hasHorizontalOverflow).toBe(false);
+
+  await page.getByRole('button', { name: /Formato do arquivo/i }).click();
+  const dialog = page.getByRole('dialog', { name: /Formato do arquivo CSV/i });
+  await expect(dialog).toBeVisible();
+
+  const dialogBox = await dialog.boundingBox();
+  expect(dialogBox).not.toBeNull();
+  expect(dialogBox!.x).toBeGreaterThanOrEqual(0);
+  expect(dialogBox!.x + dialogBox!.width).toBeLessThanOrEqual(390);
+
+  hasHorizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
+  expect(hasHorizontalOverflow).toBe(false);
 });
 
 test('partially invalid CSV shows ignored-line feedback', async ({ page }) => {

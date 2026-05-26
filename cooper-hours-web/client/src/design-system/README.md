@@ -4,8 +4,9 @@ Design system mínimo para manter a interface operacional consistente sem criar 
 
 ## Tokens
 
-- `primary`: verde Coopersystem, usado em ações principais e seleção.
+- `primary`: verde Coopersystem, usado em ações principais.
 - `success`: dias completos, registros prontos e feedback positivo.
+- `selection`: azul reservado para item ativo/selecionado, sem substituir a cor semântica do status.
 - `warning`: horas acima da meta, pendências revisáveis e alertas não bloqueantes.
 - `danger`: dias ausentes, dados inválidos e conflitos que exigem correção.
 - `surface-*`: superfícies internas, painéis elevados e bordas de seção.

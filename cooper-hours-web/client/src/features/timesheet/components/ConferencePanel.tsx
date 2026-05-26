@@ -133,8 +133,9 @@ export function ConferencePanel({
                     onClick={() => onSelectDate(date)}
                     aria-label={`${formatLocalDate(date)} ${summary.totalHours.toFixed(1)}h ${summary.isMissing ? "ausente" : summary.isBusinessDay ? "dia útil" : "hora extra"}`}
                     className={cn(
-                      "min-h-16 rounded-lg border p-2 text-left transition-colors",
-                      isSelected ? "border-primary bg-primary/10" : statusMap[visualStatus].panelClassName,
+                      "min-h-16 rounded-lg border p-2 text-left transition-colors focus-visible:ring-[3px] focus-visible:ring-selection/40",
+                      statusMap[visualStatus].panelClassName,
+                      isSelected && "relative z-10 border-selection ring-2 ring-selection/70",
                       !isSelected && "hover:bg-surface-raised"
                     )}
                     aria-pressed={isSelected}
