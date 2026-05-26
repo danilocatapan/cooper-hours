@@ -10,6 +10,14 @@ Este arquivo orienta agentes que trabalham neste repositorio. Use estas instruco
 - URL canonica local: `http://localhost:3000/cooper-hours/`.
 - Build de producao: `dist/public`.
 
+## Arquitetura frontend
+
+- `client/src/pages/Home.tsx` deve ficar como camada de orquestracao: estado da tela, handlers de upload/copia e composicao das abas.
+- Regras puras de timesheet ficam em `client/src/features/timesheet`: parsing de CSV, status, calendario, Cecis, JSONs, tipos e constantes.
+- Paineis especificos do fluxo ficam em `client/src/features/timesheet/components`.
+- Padroes visuais compartilhados ficam em `client/src/design-system`; consulte `client/src/design-system/README.md` antes de criar novo componente visual reutilizavel.
+- Primitivos shadcn/Radix continuam em `client/src/components/ui` e nao devem receber regra de negocio do dominio.
+
 ## Execucao no Windows desta maquina
 
 - Se `pnpm` nao estiver no PATH, use diretamente: `C:\Users\danilo.catapan\AppData\Roaming\npm\pnpm.cmd`.
@@ -39,6 +47,7 @@ O `playwright.config.ts` nao sobe o servidor sozinho. Se a porta 3000 estiver oc
 ## Validacao esperada
 
 - Antes de concluir alteracoes funcionais, rode typecheck, build e testes relevantes.
+- O GitHub Actions em `.github/workflows/deploy.yml` roda `pnpm run check`, `node test_comprehensive.mjs`, instala Chromium do Playwright, executa `pnpm run test:e2e`, gera build e publica `cooper-hours-web/dist/public`.
 - Para mudancas de UI, valide com Playwright em browser real, incluindo snapshots de acessibilidade, console, desktop e mobile.
 - Para esta aplicacao, valide pelo menos: upload por clique, drag-and-drop, CSV invalido, CSV com mais de 5 dias, dia abaixo de 8h, dia com 8h, dia acima de 8h e layout mobile.
 - Registre qualquer aviso pre-existente separadamente de regressao nova.
@@ -56,3 +65,5 @@ O `playwright.config.ts` nao sobe o servidor sozinho. Se a porta 3000 estiver oc
 - Nao reverta alteracoes do usuario sem pedido explicito.
 - Nao edite manualmente `node_modules` ou `dist`; eles sao artefatos de instalacao/build.
 - Preserve o escopo do pedido e remova codigo obsoleto apenas quando a falta de uso for confirmada por busca no repositorio.
+- Evite hexadecimais em telas e componentes de produto; prefira tokens semanticos (`success`, `warning`, `danger`, `surface-*`, `code`) definidos em `client/src/index.css`.
+- Ao alterar contratos testados de CSV ou Cecis, atualize/rode os E2E correspondentes.

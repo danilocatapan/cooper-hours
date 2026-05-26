@@ -3,6 +3,10 @@ name: CI/CD - Build and Deploy to GitHub Pages
 on:
   push:
     branches: ["main"]
+    paths:
+      - ".github/workflows/deploy.yml"
+      - "cooper-hours-web/**"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -16,6 +20,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
 
     steps:
       - uses: actions/checkout@v4
@@ -26,7 +31,7 @@ jobs:
           node-version: "20"
 
       - name: Enable corepack and pnpm
-        run: corepack enable && corepack prepare pnpm@latest --activate
+        run: corepack enable && corepack prepare pnpm@10.15.1 --activate
 
       - name: Install dependencies
         working-directory: cooper-hours-web
@@ -35,6 +40,30 @@ jobs:
       - name: Type check
         working-directory: cooper-hours-web
         run: pnpm run check
+
+      - name: Run parser tests
+        working-directory: cooper-hours-web
+        run: node test_comprehensive.mjs
+
+      - name: Install Playwright browser
+        working-directory: cooper-hours-web
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run end-to-end tests
+        working-directory: cooper-hours-web
+        env:
+          E2E_BASE_URL: http://127.0.0.1:3000/cooper-hours/
+        run: |
+          pnpm run dev -- --host 127.0.0.1 > /tmp/cooper-hours-vite.log 2>&1 &
+          for attempt in {1..45}; do
+            if curl -fsS "$E2E_BASE_URL" >/dev/null; then
+              pnpm run test:e2e
+              exit $?
+            fi
+            sleep 2
+          done
+          cat /tmp/cooper-hours-vite.log
+          exit 1
 
       - name: Build project
         working-directory: cooper-hours-web

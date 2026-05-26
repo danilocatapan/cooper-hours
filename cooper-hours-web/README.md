@@ -44,6 +44,7 @@ Sistema web para processar e validar registros de timesheet exportados do Busine
   - Fundo escuro: `#1a2332` (dark mode)
   - Verde neon: `#00D084` (destaque e sucesso)
   - Laranja: `#FF6B5B` (alerta e aviso)
+- **Design system:** tokens semânticos em `client/src/index.css`, documentação em `client/src/design-system/README.md` e componentes reutilizáveis para shell, cards, métricas, status e prévias de JSON.
   
 - **Logo:** Símbolo em verde e branco, texto "cooper" em verde e "system" em branco
 - **Tema:** Dark mode por padrão
@@ -160,6 +161,16 @@ node test_comprehensive.mjs
 pnpm run test:e2e
 ```
 
+### CI/CD no GitHub Actions
+
+O workflow de deploy fica em `.github/workflows/deploy.yml` na raiz do repositório pai. Em pushes para `main` que alterem `.github/workflows/deploy.yml` ou `cooper-hours-web/**` (ou execução manual via `workflow_dispatch`), ele:
+
+1. Instala dependências em `cooper-hours-web` com `pnpm@10.15.1` e lockfile congelado.
+2. Executa `pnpm run check`.
+3. Executa `node test_comprehensive.mjs`.
+4. Instala Chromium do Playwright e roda `pnpm run test:e2e` contra `http://127.0.0.1:3000/cooper-hours/`.
+5. Gera `pnpm run build`, cria `404.html` para fallback SPA e publica `cooper-hours-web/dist/public` no GitHub Pages.
+
 ---
 
 ## 🏗️ Arquitetura do Projeto
@@ -172,10 +183,13 @@ cooper-hours/
 │   ├── public/                  # Arquivos estáticos (favicon, etc)
 │   ├── src/
 │   │   ├── pages/
-│   │   │   └── Home.tsx        # Página principal (upload + relatório)
+│   │   │   └── Home.tsx        # Orquestra estado, upload e abas
+│   │   ├── features/
+│   │   │   └── timesheet/      # Domínio, parsing, Cecis e painéis do produto
+│   │   ├── design-system/      # Tokens, status e componentes compartilhados
 │   │   ├── components/
-│   │   │   └── ui/             # Componentes shadcn/ui
-│   │   ├── index.css           # Estilos globais (Tailwind + temas)
+│   │   │   └── ui/             # Primitivos shadcn/ui
+│   │   ├── index.css           # Tailwind, tema e tokens CSS
 │   │   ├── main.tsx            # Entry point React
 │   │   └── App.tsx             # Rotas e layout
 │   └── index.html              # HTML template
@@ -199,6 +213,33 @@ cooper-hours/
 | **shadcn/ui** | Latest | Componentes UI |
 | **Vite** | 7.1.9 | Build tool e dev server |
 | **Wouter** | 3.7.1 | Roteamento client-side |
+
+### Arquitetura Atual do Frontend
+
+A interface foi separada em camadas para evitar que a página principal concentre regras de negócio, layout e componentes reutilizáveis:
+
+```text
+client/src/
+├── pages/
+│   └── Home.tsx                         # Orquestra estado, upload, abas e composição
+├── features/
+│   └── timesheet/
+│       ├── constants.ts                 # Metas, defaults e opções Cecis
+│       ├── types.ts                     # Tipos de relatório, tarefas e entradas de tempo
+│       ├── parseCsv.ts                  # Parsing e validação do CSV
+│       ├── report.ts                    # Cálculos, status e helpers de relatório
+│       ├── cecis.ts                     # Parsing/mapeamento Cecis e JSONs
+│       └── components/                  # Painéis de produto do fluxo de timesheet
+├── design-system/
+│   ├── README.md                        # Regras de uso do design system
+│   ├── status.ts                        # Mapa semântico de status visuais
+│   ├── tokens.ts                        # Classes utilitárias compartilhadas
+│   └── components/                      # AppShell, SectionCard, MetricCard, etc.
+├── components/ui/                       # Primitivos shadcn/Radix
+└── index.css                            # Tailwind 4, tema e tokens CSS
+```
+
+**Regra de separação:** lógica pura fica em `features/timesheet`; padrões visuais compartilhados ficam em `design-system`; `Home.tsx` deve permanecer como camada de composição.
 
 ---
 
@@ -380,8 +421,10 @@ pnpm run dev -- --port 3000
 
 ### Arquivos Importantes
 
-- **Home.tsx:** Componente principal com toda a lógica de processamento
-- **index.css:** Estilos globais e tema Coopersystem
+- **client/src/pages/Home.tsx:** Orquestra estado, upload e composição das abas
+- **client/src/features/timesheet/:** Regras de CSV, relatório, Cecis, tipos e painéis de produto
+- **client/src/design-system/:** Tokens, mapa de status e componentes reutilizáveis do design system
+- **client/src/index.css:** Estilos globais, Tailwind 4 e tokens CSS do tema Coopersystem
 - **package.json:** Dependências e scripts
 - **vite.config.ts:** Configuração do build
 
@@ -400,9 +443,10 @@ pnpm run dev -- --port 3000
 ### Padrões de Código
 
 - **TypeScript:** Tipagem forte em todos os componentes
-- **React Hooks:** useState para gerenciamento de estado
-- **Tailwind CSS:** Utilities-first para estilização
-- **Componentes:** Reutilizáveis e compostos com shadcn/ui
+- **React Hooks:** estado na página e cálculos derivados com `useMemo`
+- **Tailwind CSS:** utilities-first com tokens semânticos em `index.css`
+- **Componentes:** primitivas shadcn/ui, componentes de produto em `features/timesheet/components` e padrões compartilhados em `design-system/components`
+- **Separação de responsabilidades:** parsing, status, calendário, Cecis e JSONs devem permanecer como funções puras em `features/timesheet`
 
 ### Boas Práticas Implementadas
 
