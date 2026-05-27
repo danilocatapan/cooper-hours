@@ -16,6 +16,7 @@ import { ConferencePanel } from "@/features/timesheet/components/ConferencePanel
 import { TasksPanel } from "@/features/timesheet/components/TasksPanel";
 import { TimeEntriesPanel } from "@/features/timesheet/components/TimeEntriesPanel";
 import { UploadPanel } from "@/features/timesheet/components/UploadPanel";
+import { sanitizeProcessingError } from "@/features/privacy/lgpd";
 import { processCsv } from "@/features/timesheet/parseCsv";
 import {
   buildTimeEntries,
@@ -40,6 +41,7 @@ export default function Home() {
   const [copiedTarget, setCopiedTarget] = useState<CopiedTarget>(null);
   const [taskConfigs, setTaskConfigs] = useState<Record<string, TaskConfig>>({});
   const [cecisResponseText, setCecisResponseText] = useState("");
+  const [privacyAcknowledged, setPrivacyAcknowledged] = useState(false);
   const [liveMessage, setLiveMessage] = useState("");
 
   const logoSrc = `${import.meta.env.BASE_URL}assets/coopersystem-logo.svg`;
@@ -78,6 +80,12 @@ export default function Home() {
   }, [report]);
 
   const processFile = (file: File) => {
+    if (!privacyAcknowledged) {
+      setError("Confirme a ciência sobre privacidade antes de importar um arquivo.");
+      setLiveMessage("Importação bloqueada até a confirmação do Aviso de Privacidade.");
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     setIsDragging(false);
@@ -107,7 +115,7 @@ export default function Home() {
           dueDate: processedReport.maxImportedDate,
         });
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Erro ao processar arquivo");
+        setError(sanitizeProcessingError(err));
         setLiveMessage("Não foi possível analisar o CSV. Revise o erro exibido no painel de upload.");
         setReport(null);
         setSelectedDate(null);
@@ -136,6 +144,13 @@ export default function Home() {
     event.preventDefault();
     if (isLoading) return;
 
+    if (!privacyAcknowledged) {
+      setIsDragging(false);
+      setError("Confirme a ciência sobre privacidade antes de importar um arquivo.");
+      setLiveMessage("Importação por arrastar e soltar bloqueada até a confirmação de privacidade.");
+      return;
+    }
+
     const file = event.dataTransfer.files?.[0];
     if (!file) {
       setIsDragging(false);
@@ -162,6 +177,19 @@ export default function Home() {
   const applyCecisResponse = () => {
     setTaskConfigs((current) => applyCecisIssuesToTaskConfigs(cecisResponseText, uniqueTaskTitles, current));
     setLiveMessage("Resposta da Cecis aplicada ao mapa de tarefas.");
+  };
+
+  const clearImportedData = () => {
+    setReport(null);
+    setSelectedDate(null);
+    setError(null);
+    setIsDragging(false);
+    setCopiedTarget(null);
+    setTaskConfigs({});
+    setCecisResponseText("");
+    setTaskDefaults(DEFAULT_TASKS);
+    setActiveResultTab("conference");
+    setLiveMessage("Dados importados removidos desta sessão do navegador.");
   };
 
   const copyJson = async (jsonText: string, target: Exclude<CopiedTarget, null>) => {
@@ -213,9 +241,12 @@ export default function Home() {
             error={error}
             report={report}
             completeDays={reportStats?.completeDays ?? 0}
+            privacyAcknowledged={privacyAcknowledged}
             onDraggingChange={setIsDragging}
             onDrop={handleDrop}
             onFileUpload={handleFileUpload}
+            onPrivacyAcknowledgedChange={setPrivacyAcknowledged}
+            onClearImportedData={clearImportedData}
           />
         </div>
 

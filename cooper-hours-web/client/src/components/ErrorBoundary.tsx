@@ -1,6 +1,9 @@
 import { cn } from "@/lib/utils";
 import { AlertTriangle, RotateCcw } from "lucide-react";
 import { Component, ReactNode } from "react";
+import { LGPD_NOTICE } from "@/features/privacy/lgpd";
+
+const isDev = import.meta.env.DEV;
 
 interface Props {
   children: ReactNode;
@@ -35,7 +38,9 @@ class ErrorBoundary extends Component<Props, State> {
 
             <div className="p-4 w-full rounded bg-muted overflow-auto mb-6">
               <pre className="text-sm text-muted-foreground whitespace-break-spaces">
-                {this.state.error?.stack}
+                {isDev
+                  ? this.state.error?.stack
+                  : `Erro inesperado. Recarregue a página ou contate ${LGPD_NOTICE.contactChannel}.`}
               </pre>
             </div>
 

@@ -20,9 +20,10 @@ interface JsonPreviewProps {
   className?: string;
   validation?: JsonPreviewValidation;
   copyDisabled?: boolean;
+  privacyNotice?: string;
 }
 
-export function JsonPreview({ title, description, value, copied, testId, onCopy, className, validation, copyDisabled }: JsonPreviewProps) {
+export function JsonPreview({ title, description, value, copied, testId, onCopy, className, validation, copyDisabled, privacyNotice }: JsonPreviewProps) {
   const ValidationIcon = validation?.tone === "ready" ? CheckCircle2 : AlertCircle;
 
   return (
@@ -59,6 +60,9 @@ export function JsonPreview({ title, description, value, copied, testId, onCopy,
           </div>
         </div>
       )}
+      <p className="mb-3 rounded-lg border border-selection/30 bg-selection/10 p-3 text-xs leading-5 text-foreground">
+        {privacyNotice ?? "Este conteúdo pode conter dados pessoais. Copie apenas para sistemas autorizados e conforme a finalidade informada no Aviso de Privacidade."}
+      </p>
       <pre data-testid={testId} className={cn("max-h-[420px] overflow-auto rounded-lg border p-4", surfaceClass.code, textClass.mono)}>
         {value}
       </pre>

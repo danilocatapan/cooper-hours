@@ -10,6 +10,30 @@ Sistema web para processar e validar registros de timesheet exportados do Busine
 
 ---
 
+## Privacidade e LGPD
+
+Este projeto adota o modelo **local-only**: o CSV é lido e processado no navegador do usuário, sem envio automático para backend, banco de dados, analytics ou terceiros.
+
+### Matriz resumida de tratamento
+
+| Operacao | Dados envolvidos | Finalidade | Retencao | Compartilhamento |
+|----------|------------------|------------|----------|------------------|
+| Upload local do CSV | Nome, IDs de cartão/tarefa, títulos, etiquetas, datas e horas | Conferir lançamentos e gerar relatório | Apenas durante a sessão da página | Nenhum automático |
+| Relatório na tela | Datas, horas, títulos e IDs | Revisão visual pelo usuário | Apenas durante a sessão da página | Nenhum automático |
+| Cópia de JSON | Títulos, datas, horas, issue_id e activity_id | Uso manual em Cecis ou sistema autorizado | Área de transferência do dispositivo | Manual pelo usuário |
+| Download CSV | Resumo de datas, horas e atividades | Arquivamento ou envio manual autorizado | Arquivo baixado no dispositivo | Manual pelo usuário |
+| Tema visual | Preferencia de tema | Acessibilidade e conforto visual | localStorage do navegador | Nenhum automatico |
+
+### Textos base
+
+- Consentimento/ciência: "Confirmo que tenho autorização para importar este CSV e autorizo o tratamento local dos dados pessoais nele contidos para validação de horas e geração de relatórios/JSONs pela [PLACEHOLDER_NOME_EMPRESA]."
+- Direitos do titular: "Você pode solicitar confirmação de tratamento, acesso, correção, anonimização, bloqueio, eliminação, portabilidade, informação sobre compartilhamento e revogação de consentimento pelo canal [PLACEHOLDER_CANAIS_CONTATO]."
+- Encarregado/DPO: "O encarregado pelo tratamento de dados pessoais pode ser contatado em [PLACEHOLDER_CONTATO_DPO]."
+
+Antes de uso institucional, revise estes textos com [PLACEHOLDER_RESPONSAVEL_JURIDICO] e preencha [PLACEHOLDER_NOME_EMPRESA], [PLACEHOLDER_CANAIS_CONTATO] e [PLACEHOLDER_CONTATO_DPO].
+
+---
+
 ## 🎯 O que o Sistema Faz
 
 ### Funcionalidades Principais
@@ -57,7 +81,7 @@ Sistema web para processar e validar registros de timesheet exportados do Busine
 
 | Campo | Descrição | Exemplo |
 |-------|-----------|---------|
-| **Usuário** | Nome do colaborador | Danilo |
+| **Usuário** | Nome do colaborador | [PLACEHOLDER_USUARIO] |
 | **ID do cartão** | Identificador único | 893566 |
 | **Título** | Descrição da tarefa | [Back] [Arquitetural] Replicação |
 | **Etiquetas** | Tags/categorias (opcional) | QualityBot,#bbseg,#modelagem |
@@ -74,9 +98,9 @@ Sistema web para processar e validar registros de timesheet exportados do Busine
 
 ```
 Usuário	ID do cartão	Título	Etiquetas	Data	Tempo registrado soma
-Danilo	893566	[Back] [Arquitetural] Replicação	"QualityBot,#bbseg,#modelagem"	2026-04-01	5.000
-Danilo	987589	[313-Maestro] Ritos (Daily, Planning)	"#bbseg"	2026-04-01	1.000
-Danilo	987605	[313-Maestro] Refinamento	"#bbseg"	2026-04-01	2.000
+[PLACEHOLDER_USUARIO]	893566	[Back] [Arquitetural] Replicação	"QualityBot,#bbseg,#modelagem"	2026-04-01	5.000
+[PLACEHOLDER_USUARIO]	987589	[313-Maestro] Ritos (Daily, Planning)	"#bbseg"	2026-04-01	1.000
+[PLACEHOLDER_USUARIO]	987605	[313-Maestro] Refinamento	"#bbseg"	2026-04-01	2.000
 ```
 
 ### Separadores Suportados
@@ -405,10 +429,10 @@ pnpm run dev -- --port 3000
    - Alertar usuário sobre possíveis erros de lançamento
    - Sugerir consolidação de registros
 
-4. **Histórico de Uploads**
-   - Salvar últimos uploads em localStorage
-   - Permitir comparação entre períodos
-   - Exportar histórico em CSV
+4. **Historico de Uploads**
+   - Não salvar uploads por padrão
+   - Só implementar histórico com consentimento específico, retenção definida e opção de exclusão
+   - Preferir dados agregados ou anonimizados quando possível
 
 5. **Filtros Avançados**
    - Filtrar por intervalo de datas

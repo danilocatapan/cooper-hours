@@ -207,8 +207,7 @@ export function processCsv(csvText: string): TimesheetReport {
       summary.totalHours += hours;
       overallTotalHours += hours;
       validLineCount++;
-    } catch (e) {
-      console.error(`Erro ao processar linha: ${line}`, e);
+    } catch (_error) {
       ignoredLineCount++;
       ignoredLineIssues.push(createCsvIssue(
         i + 1,

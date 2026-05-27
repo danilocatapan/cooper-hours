@@ -7,6 +7,10 @@ const testDir = path.dirname(fileURLToPath(import.meta.url));
 
 test.beforeEach(async ({ page }) => {
   await page.goto(base, { waitUntil: 'networkidle' });
+  const privacyCheckbox = page.getByRole('checkbox', { name: /Li o Aviso de Privacidade/i });
+  if (await privacyCheckbox.isVisible()) {
+    await privacyCheckbox.click();
+  }
 });
 
 const buildCsv = (rows: string[]) => [
@@ -15,7 +19,7 @@ const buildCsv = (rows: string[]) => [
 ].join('\n');
 
 const row = (date: string, hours: string, title = `Tarefa ${date}`) =>
-  `Danilo\t${date.replaceAll('-', '')}\t${title}\t"tag"\t${date}\t${hours}`;
+  `Usuario Teste\t${date.replaceAll('-', '')}\t${title}\t"tag"\t${date}\t${hours}`;
 
 test('initial screen is usable and free of legacy debug hooks', async ({ page }) => {
   await expect(page.getByRole('heading', { name: /validação diária de 8h/i })).toBeVisible();
@@ -135,8 +139,8 @@ test('upload CSV and show full report flow', async ({ page }) => {
 
 test('create tasks tab generates the exact batch JSON contract', async ({ page }) => {
   const csv = buildCsv([
-    'Danilo\t893566\tTarefa API\t"tag"\t2026-04-01\t5.000',
-    'Danilo\t987589\tTarefa UI\t"tag"\t2026-04-15\t3.000',
+    'Usuario Teste\t893566\tTarefa API\t"tag"\t2026-04-01\t5.000',
+    'Usuario Teste\t987589\tTarefa UI\t"tag"\t2026-04-15\t3.000',
   ]);
 
   await page.locator('input[type="file"]').setInputFiles({
@@ -180,8 +184,8 @@ test('create tasks tab generates the exact batch JSON contract', async ({ page }
 
 test('time entries tab maps Cecis issue ids and generates the manual array JSON contract', async ({ page }) => {
   const csv = buildCsv([
-    'Danilo\t893566\tMaestro-Refinamentos S2-Abr\t"tag"\t2026-04-14\t2.000',
-    'Danilo\t987589\tMaestro-Ritos (Daily, Planning, Review e Retro) S2-Abr\t"tag"\t2026-04-15\t6.000',
+    'Usuario Teste\t893566\tMaestro-Refinamentos S2-Abr\t"tag"\t2026-04-14\t2.000',
+    'Usuario Teste\t987589\tMaestro-Ritos (Daily, Planning, Review e Retro) S2-Abr\t"tag"\t2026-04-15\t6.000',
   ]);
 
   await page.locator('input[type="file"]').setInputFiles({
@@ -238,8 +242,8 @@ test('time entries tab maps Cecis issue ids and generates the manual array JSON 
 
 test('time entries JSON excludes tasks that were not mapped by Cecis', async ({ page }) => {
   const csv = buildCsv([
-    'Danilo\t893566\tTarefa Mapeada\t"tag"\t2026-04-14\t2.000',
-    'Danilo\t987589\tTarefa Pendente\t"tag"\t2026-04-15\t6.000',
+    'Usuario Teste\t893566\tTarefa Mapeada\t"tag"\t2026-04-14\t2.000',
+    'Usuario Teste\t987589\tTarefa Pendente\t"tag"\t2026-04-15\t6.000',
   ]);
 
   await page.locator('input[type="file"]').setInputFiles({
@@ -269,7 +273,7 @@ test('time entries JSON excludes tasks that were not mapped by Cecis', async ({ 
 test('all days remain navigable when CSV has more than five days', async ({ page }) => {
   const rows = Array.from({ length: 7 }, (_, idx) => {
     const day = String(idx + 1).padStart(2, '0');
-    return `Danilo\t${900 + idx}\tTarefa ${idx + 1}\t"tag"\t2026-04-${day}\t8.000`;
+    return `Usuario Teste\t${900 + idx}\tTarefa ${idx + 1}\t"tag"\t2026-04-${day}\t8.000`;
   });
 
   await page.locator('input[type="file"]').setInputFiles({
@@ -286,9 +290,9 @@ test('all days remain navigable when CSV has more than five days', async ({ page
 
 test('below and above target statuses are clearly differentiated', async ({ page }) => {
   const csv = buildCsv([
-    'Danilo\t101\tTarefa curta\t"tag"\t2026-04-01\t7.000',
-    'Danilo\t102\tTarefa longa\t"tag"\t2026-04-02\t9.000',
-    'Danilo\t103\tTarefa exata\t"tag"\t2026-04-06\t8.000',
+    'Usuario Teste\t101\tTarefa curta\t"tag"\t2026-04-01\t7.000',
+    'Usuario Teste\t102\tTarefa longa\t"tag"\t2026-04-02\t9.000',
+    'Usuario Teste\t103\tTarefa exata\t"tag"\t2026-04-06\t8.000',
   ]);
 
   await page.locator('input[type="file"]').setInputFiles({
@@ -349,8 +353,8 @@ test('mobile layout keeps calendar and CSV modal within the viewport', async ({ 
 
 test('partially invalid CSV shows ignored-line feedback', async ({ page }) => {
   const csv = buildCsv([
-    'Danilo\t101\tTarefa válida\t"tag"\t2026-04-01\t8.000',
-    'Danilo\t102\tTarefa sem data\t"tag"\tdata-invalida\t2.000',
+    'Usuario Teste\t101\tTarefa válida\t"tag"\t2026-04-01\t8.000',
+    'Usuario Teste\t102\tTarefa sem data\t"tag"\tdata-invalida\t2.000',
   ]);
 
   await page.locator('input[type="file"]').setInputFiles({
@@ -369,7 +373,7 @@ test('drag and drop uploads a CSV', async ({ page }) => {
     dataTransfer: await page.evaluateHandle((fixturePath) => {
       const dataTransfer = new DataTransfer();
       const file = new File([
-        'Usuário\tID do cartão\tTítulo\tEtiquetas\tData\tTempo registrado soma\nDanilo\t1\tTarefa drop\t"tag"\t2026-04-01\t8.000',
+        'Usuário\tID do cartão\tTítulo\tEtiquetas\tData\tTempo registrado soma\nUsuario Teste\t1\tTarefa drop\t"tag"\t2026-04-01\t8.000',
       ], fixturePath.split(/[\\/]/).pop() || 'sample.csv', { type: 'text/csv' });
       dataTransfer.items.add(file);
       return dataTransfer;
@@ -521,8 +525,8 @@ test('duplicate records are ignored and reported', async ({ page }) => {
 test('semicolon CSV supports decimal comma and separators inside quoted fields', async ({ page }) => {
   const csv = [
     'Usuário;ID do cartão;Título;Etiquetas;Data;Tempo registrado soma',
-    'Danilo;1;"Reunião, alinhamento";"tag;interna";2026-04-01;5,5',
-    'Danilo;2;"Execução; entrega";"tag;externa";2026-04-01;2,5',
+    'Usuario Teste;1;"Reunião, alinhamento";"tag;interna";2026-04-01;5,5',
+    'Usuario Teste;2;"Execução; entrega";"tag;externa";2026-04-01;2,5',
   ].join('\n');
 
   await page.locator('input[type="file"]').setInputFiles({
@@ -539,7 +543,7 @@ test('semicolon CSV supports decimal comma and separators inside quoted fields',
 
 test('CSV with more than one user is rejected', async ({ page }) => {
   const csv = buildCsv([
-    row('2026-04-01', '8.000', 'Tarefa Danilo'),
+    row('2026-04-01', '8.000', 'Tarefa Usuario Teste'),
     'Maria\t20260402\tTarefa Maria\t"tag"\t2026-04-02\t8.000',
   ]);
 

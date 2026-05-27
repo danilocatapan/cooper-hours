@@ -1,30 +1,30 @@
-# AGENTS.md - Instrucoes persistentes para agentes
+# AGENTS.md - Instruções persistentes para agentes
 
-Este arquivo orienta agentes que trabalham neste repositorio. Use estas instrucoes para evitar perguntas repetidas sobre execucao, validacao e uso de skills.
+Este arquivo orienta agentes que trabalham neste repositório. Use estas instruções para evitar perguntas repetidas sobre execução, validação e uso de skills.
 
 ## Projeto
 
 - Raiz do app: `cooper-hours-web`.
-- Aplicacao principal: React + Vite em `client/src`.
+- Aplicação principal: React + Vite em `client/src`.
 - Porta Vite configurada: `3000`.
-- URL canonica local: `http://localhost:3000/cooper-hours/`.
-- Build de producao: `dist/public`.
+- URL canônica local: `http://localhost:3000/cooper-hours/`.
+- Build de produção: `dist/public`.
 
 ## Arquitetura frontend
 
-- `client/src/pages/Home.tsx` deve ficar como camada de orquestracao: estado da tela, handlers de upload/copia e composicao das abas.
-- Regras puras de timesheet ficam em `client/src/features/timesheet`: parsing de CSV, status, calendario, Cecis, JSONs, tipos e constantes.
-- Paineis especificos do fluxo ficam em `client/src/features/timesheet/components`.
-- Padroes visuais compartilhados ficam em `client/src/design-system`; consulte `client/src/design-system/README.md` antes de criar novo componente visual reutilizavel.
-- Primitivos shadcn/Radix continuam em `client/src/components/ui` e nao devem receber regra de negocio do dominio.
+- `client/src/pages/Home.tsx` deve ficar como camada de orquestração: estado da tela, handlers de upload/cópia e composição das abas.
+- Regras puras de timesheet ficam em `client/src/features/timesheet`: parsing de CSV, status, calendário, Cecis, JSONs, tipos e constantes.
+- Painéis específicos do fluxo ficam em `client/src/features/timesheet/components`.
+- Padrões visuais compartilhados ficam em `client/src/design-system`; consulte `client/src/design-system/README.md` antes de criar novo componente visual reutilizável.
+- Primitivos shadcn/Radix continuam em `client/src/components/ui` e não devem receber regra de negócio do domínio.
 
-## Execucao no Windows desta maquina
+## Execução no Windows desta máquina
 
-- Se `pnpm` nao estiver no PATH, use diretamente: `C:\Users\danilo.catapan\AppData\Roaming\npm\pnpm.cmd`.
-- Nao pergunte novamente qual gerenciador usar quando esse caminho existir; use-o automaticamente.
+- Se `pnpm` não estiver no PATH, use diretamente: `C:\Users\danilo.catapan\AppData\Roaming\npm\pnpm.cmd`.
+- Não pergunte novamente qual gerenciador usar quando esse caminho existir; use-o automaticamente.
 - Execute comandos a partir de `cooper-hours-web`.
 
-## Comandos padrao
+## Comandos padrão
 
 ```powershell
 & 'C:\Users\danilo.catapan\AppData\Roaming\npm\pnpm.cmd' install
@@ -42,28 +42,29 @@ $env:E2E_BASE_URL='http://localhost:3000/cooper-hours/'
 & 'C:\Users\danilo.catapan\AppData\Roaming\npm\pnpm.cmd' run test:e2e
 ```
 
-O `playwright.config.ts` nao sobe o servidor sozinho. Se a porta 3000 estiver ocupada, leia a URL impressa pelo Vite antes de testar.
+O `playwright.config.ts` não sobe o servidor sozinho. Se a porta 3000 estiver ocupada, leia a URL impressa pelo Vite antes de testar.
 
-## Validacao esperada
+## Validação esperada
 
-- Antes de concluir alteracoes funcionais, rode typecheck, build e testes relevantes.
+- Antes de concluir alterações funcionais, rode typecheck, build e testes relevantes.
 - O GitHub Actions em `.github/workflows/deploy.yml` roda `pnpm run check`, `node test_comprehensive.mjs`, instala Chromium do Playwright, executa `pnpm run test:e2e`, gera build e publica `cooper-hours-web/dist/public`.
-- Para mudancas de UI, valide com Playwright em browser real, incluindo snapshots de acessibilidade, console, desktop e mobile.
-- Para esta aplicacao, valide pelo menos: upload por clique, drag-and-drop, CSV invalido, CSV com mais de 5 dias, dia abaixo de 8h, dia com 8h, dia acima de 8h e layout mobile.
-- Registre qualquer aviso pre-existente separadamente de regressao nova.
+- Para mudanças de UI, valide com Playwright em browser real, incluindo snapshots de acessibilidade, console, desktop e mobile.
+- Para esta aplicação, valide pelo menos: upload por clique, drag-and-drop, CSV inválido, CSV com mais de 5 dias, dia abaixo de 8h, dia com 8h, dia acima de 8h e layout mobile.
+- Registre qualquer aviso preexistente separadamente de regressão nova.
 
 ## Skills
 
-- Use `define-goal` quando o pedido precisar transformar uma intencao ampla em objetivo verificavel.
+- Use `define-goal` quando o pedido precisar transformar uma intenção ampla em objetivo verificável.
 - Use `webapp-testing` e `playwright` para fluxos de UI.
-- Use `create-plan` quando o usuario pedir plano antes da execucao.
-- Use `frontend-design` para evolucoes de interface, preservando a identidade visual existente.
+- Use `create-plan` quando o usuário pedir plano antes da execução.
+- Use `frontend-design` para evoluções de interface, preservando a identidade visual existente.
 - Leia o `SKILL.md` relevante antes de aplicar uma skill nova.
 
 ## Cuidados
 
-- Nao reverta alteracoes do usuario sem pedido explicito.
-- Nao edite manualmente `node_modules` ou `dist`; eles sao artefatos de instalacao/build.
-- Preserve o escopo do pedido e remova codigo obsoleto apenas quando a falta de uso for confirmada por busca no repositorio.
-- Evite hexadecimais em telas e componentes de produto; prefira tokens semanticos (`success`, `warning`, `danger`, `surface-*`, `code`) definidos em `client/src/index.css`.
+- Textos de interface, documentação, mensagens de erro e avisos legais exibidos ao usuário devem estar em pt-BR, com ortografia correta e acentos. Antes de concluir qualquer alteração textual, rode uma busca por palavras sem acento em português (ex.: `ciencia`, `autorizacao`, `nao`, `usuario`, `validacao`) e corrija os casos que forem texto humano, mantendo sem acento apenas identificadores técnicos, nomes de arquivos, slugs, comandos e código.
+- Não reverta alterações do usuário sem pedido explícito.
+- Não edite manualmente `node_modules` ou `dist`; eles são artefatos de instalação/build.
+- Preserve o escopo do pedido e remova código obsoleto apenas quando a falta de uso for confirmada por busca no repositório.
+- Evite hexadecimais em telas e componentes de produto; prefira tokens semânticos (`success`, `warning`, `danger`, `surface-*`, `code`) definidos em `client/src/index.css`.
 - Ao alterar contratos testados de CSV ou Cecis, atualize/rode os E2E correspondentes.

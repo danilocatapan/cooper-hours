@@ -123,6 +123,9 @@ export function ConferencePanel({
         <Button type="button" variant="outline" size="sm" className="mt-4 w-full sm:w-auto" onClick={onDownloadReportCsv}>
           Baixar relatório CSV
         </Button>
+        <p className="mt-2 text-xs leading-5 text-muted-foreground">
+          O arquivo baixado pode conter dados pessoais do CSV importado. Compartilhe apenas com sistemas e pessoas autorizadas.
+        </p>
       </SectionCard>
 
       <SectionCard title="Conferência diária" description="Selecione qualquer dia para revisar total e atividades.">
