@@ -14,10 +14,19 @@ export interface DailySummary {
   holidayName?: string;
 }
 
+export interface CsvIssue {
+  lineNumber: number;
+  reason: string;
+  date?: string;
+  hours?: string;
+  suggestion: string;
+}
+
 export interface TimesheetReport {
   dailySummaries: DailySummary[];
   overallTotalHours: number;
   ignoredLineCount: number;
+  ignoredLineIssues: CsvIssue[];
   duplicateLineCount: number;
   rawLineCount: number;
   validLineCount: number;

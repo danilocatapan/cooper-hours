@@ -1,3 +1,4 @@
+import type { KeyboardEvent } from "react";
 import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,33 @@ export function ConferencePanel({
   onSelectDate,
   onDownloadReportCsv,
 }: ConferencePanelProps) {
+  const focusCalendarDate = (date: string) => {
+    requestAnimationFrame(() => {
+      document.querySelector<HTMLButtonElement>(`[data-calendar-date="${date}"]`)?.focus();
+    });
+  };
+
+  const handleCalendarKeyDown = (event: KeyboardEvent<HTMLButtonElement>, date: string) => {
+    const dates = calendarCells.filter((cell): cell is string => Boolean(cell));
+    const currentIndex = dates.indexOf(date);
+    const offsets: Record<string, number> = {
+      ArrowLeft: -1,
+      ArrowRight: 1,
+      ArrowUp: -7,
+      ArrowDown: 7,
+      Home: -currentIndex,
+      End: dates.length - currentIndex - 1,
+    };
+
+    if (!(event.key in offsets)) return;
+
+    event.preventDefault();
+    const nextIndex = Math.min(Math.max(currentIndex + offsets[event.key], 0), dates.length - 1);
+    const nextDate = dates[nextIndex];
+    onSelectDate(nextDate);
+    focusCalendarDate(nextDate);
+  };
+
   return (
     <div className="space-y-6">
       <SectionCard
@@ -99,15 +127,18 @@ export function ConferencePanel({
 
       <SectionCard title="Conferência diária" description="Selecione qualquer dia para revisar total e atividades.">
         <div className="space-y-4">
-          <div aria-label="Calendário do mês importado">
-            <div className="grid grid-cols-7 gap-2 text-center text-xs font-medium text-muted-foreground">
+          <div role="grid" aria-label="Calendário do mês importado" aria-describedby="calendar-help">
+            <p id="calendar-help" className="sr-only">
+              Use as setas do teclado para navegar entre os dias. A seleção atual controla o detalhe diário abaixo.
+            </p>
+            <div role="row" className="grid grid-cols-7 gap-2 text-center text-xs font-medium text-muted-foreground">
               {["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"].map((weekday) => (
-                <span key={weekday}>{weekday}</span>
+                <span key={weekday} role="columnheader">{weekday}</span>
               ))}
             </div>
-            <div className="mt-2 grid grid-cols-7 gap-2">
+            <div role="rowgroup" className="mt-2 grid grid-cols-7 gap-2">
               {calendarCells.map((date, idx) => {
-                if (!date) return <div key={`empty-${idx}`} className="h-20" />;
+                if (!date) return <div key={`empty-${idx}`} role="presentation" className="h-20" />;
 
                 const summary = summaryByDate.get(date);
                 const dayNumber = Number(date.slice(-2));
@@ -116,7 +147,7 @@ export function ConferencePanel({
 
                 if (!summary) {
                   return (
-                    <div key={date} className="h-20 overflow-hidden rounded-lg border border-border/60 bg-surface-subtle p-2 text-left opacity-60">
+                    <div key={date} role="gridcell" aria-label={`${dayNumber} sem registro`} className="h-20 overflow-hidden rounded-lg border border-border/60 bg-surface-subtle p-2 text-left opacity-60">
                       <p className="text-sm font-semibold text-muted-foreground">{dayNumber}</p>
                       {weekend && <p className="mt-1 text-[11px] text-muted-foreground">opcional</p>}
                     </div>
@@ -132,8 +163,11 @@ export function ConferencePanel({
                   <button
                     key={date}
                     type="button"
+                    data-calendar-date={date}
                     onClick={() => onSelectDate(date)}
+                    onKeyDown={(event) => handleCalendarKeyDown(event, date)}
                     aria-label={`${formatLocalDate(date)} ${summary.totalHours.toFixed(1)}h ${summary.isHoliday ? `feriado nacional ${summary.holidayName ?? ""}` : summary.isMissing ? "ausente" : summary.isBusinessDay ? "dia útil" : "hora extra"}`}
+                    aria-controls="daily-detail"
                     className={cn(
                       "h-20 overflow-hidden rounded-lg border p-2 text-left transition-colors focus-visible:ring-[3px] focus-visible:ring-selection/40",
                       statusMap[visualStatus].panelClassName,
@@ -141,6 +175,7 @@ export function ConferencePanel({
                       !isSelected && "hover:bg-surface-raised"
                     )}
                     aria-pressed={isSelected}
+                    aria-selected={isSelected}
                   >
                     <div className="flex items-center justify-between gap-1">
                       <span className="text-sm font-semibold text-foreground">{dayNumber}</span>
@@ -181,7 +216,7 @@ function DailyDetail({ summary }: { summary: DailySummary }) {
   const expectedHours = summary.isHoliday || !summary.isBusinessDay ? 0 : DAILY_TARGET_HOURS;
 
   return (
-    <div className={cn("rounded-lg border-2 p-4", statusMap[visualStatus].panelClassName)}>
+    <div id="daily-detail" className={cn("rounded-lg border-2 p-4", statusMap[visualStatus].panelClassName)}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="text-lg font-semibold text-foreground">
@@ -196,7 +231,7 @@ function DailyDetail({ summary }: { summary: DailySummary }) {
             {summary.totalHours.toFixed(1)}h lançadas de {expectedHours.toFixed(1)}h esperadas.
           </p>
           {summary.isHoliday && (
-            <p className="mt-1 text-sm text-[#E9D5FF]">
+            <p className="mt-1 text-sm text-holiday-foreground">
               {summary.holidayName ?? "Feriado nacional"}. Sem lançamento obrigatório.
             </p>
           )}

@@ -54,10 +54,10 @@ export const statusMap: Record<TimesheetStatus, StatusDefinition> = {
   holiday: {
     label: "Feriado",
     Icon: CalendarDays,
-    iconClassName: "text-[#D8B4FE]",
-    badgeClassName: "border-[#A855F7]/40 bg-[#A855F7]/15 text-[#E9D5FF]",
-    panelClassName: "border-[#A855F7]/40 bg-[#A855F7]/15",
-    metricClassName: "border-[#A855F7]/40 bg-[#A855F7]/15 text-[#E9D5FF]",
+    iconClassName: "text-holiday",
+    badgeClassName: "border-holiday-border/40 bg-holiday-surface text-holiday-foreground",
+    panelClassName: "border-holiday-border/40 bg-holiday-surface",
+    metricClassName: "border-holiday-border/40 bg-holiday-surface text-holiday-foreground",
   },
   invalid: {
     label: "Inválido",

@@ -1,4 +1,4 @@
-import type { ChangeEvent, DragEvent } from "react";
+import type { ChangeEvent, DragEvent, KeyboardEvent } from "react";
 import { AlertCircle, Info, Upload } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -58,6 +58,12 @@ export function UploadPanel({
   onDrop,
   onFileUpload,
 }: UploadPanelProps) {
+  const handlePickerKeyDown = (event: KeyboardEvent<HTMLLabelElement>) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    document.getElementById("file-upload")?.click();
+  };
+
   return (
     <SectionCard
       className="sticky top-8"
@@ -86,14 +92,28 @@ export function UploadPanel({
             accept=".csv,.tsv,.txt"
             onChange={onFileUpload}
             disabled={isLoading}
-            className="hidden"
+            className="sr-only"
             id="file-upload"
+            tabIndex={-1}
+            aria-hidden="true"
           />
-          <label htmlFor="file-upload" className="block cursor-pointer">
+          <label
+            htmlFor="file-upload"
+            role="button"
+            tabIndex={isLoading ? -1 : 0}
+            aria-describedby="file-upload-help"
+            onKeyDown={handlePickerKeyDown}
+            className="mx-auto flex max-w-xs cursor-pointer flex-col items-center rounded-lg px-4 py-2 outline-none focus-visible:ring-[3px] focus-visible:ring-selection/50"
+          >
             <Upload className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
-            <p className="text-sm font-medium text-foreground">Clique para selecionar</p>
-            <p className="mt-1 text-xs text-muted-foreground">ou arraste um arquivo CSV aqui</p>
+            <span className="text-sm font-medium text-foreground">Selecionar CSV</span>
+            <span id="file-upload-help" className="mt-1 text-xs text-muted-foreground">
+              Use Enter, Espaço ou arraste um arquivo CSV aqui
+            </span>
           </label>
+          <p className="sr-only" role="status" aria-live="polite">
+            {isDragging ? "Arquivo sobre a area de upload. Solte para importar." : "Upload por clique ou teclado disponivel."}
+          </p>
         </div>
 
         {isLoading && (
@@ -125,6 +145,29 @@ export function UploadPanel({
               {report.ignoredLineCount} linha(s) foram ignoradas por data inválida, horas zeradas ou campos obrigatórios ausentes.
             </AlertDescription>
           </Alert>
+        )}
+
+        {report && report.ignoredLineIssues.length > 0 && (
+          <details className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm">
+            <summary className="cursor-pointer font-semibold text-warning">
+              Erros do CSV ({report.ignoredLineIssues.length})
+            </summary>
+            <div className="mt-3 space-y-2">
+              {report.ignoredLineIssues.slice(0, 8).map((issue) => (
+                <div key={`${issue.lineNumber}-${issue.reason}`} className="rounded-md border border-border bg-card p-3">
+                  <p className="font-medium text-foreground">Linha {issue.lineNumber}: {issue.reason}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {issue.date ? `Data: ${issue.date}. ` : ""}
+                    {issue.hours ? `Horas: ${issue.hours}. ` : ""}
+                    {issue.suggestion}
+                  </p>
+                </div>
+              ))}
+              {report.ignoredLineIssues.length > 8 && (
+                <p className="text-xs text-muted-foreground">Mostrando as 8 primeiras linhas com erro.</p>
+              )}
+            </div>
+          </details>
         )}
 
         {report && report.duplicateLineCount > 0 && (

@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import { ClipboardList } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -33,6 +34,19 @@ export function TasksPanel({
   onTaskConfigChange,
   onCopyTasks,
 }: TasksPanelProps) {
+  const [taskFilter, setTaskFilter] = useState("");
+  const [showIssuePendingOnly, setShowIssuePendingOnly] = useState(false);
+  const denseMode = uniqueTaskTitles.length >= 10;
+  const filteredTaskTitles = useMemo(() => {
+    const normalizedFilter = normalizeTitle(taskFilter);
+    return uniqueTaskTitles.filter((title) => {
+      const config = taskConfigs[title] ?? getDefaultTaskConfig(title);
+      const matchesFilter = !normalizedFilter || normalizeTitle(title).includes(normalizedFilter);
+      const matchesPending = !showIssuePendingOnly || !config.issueId;
+      return matchesFilter && matchesPending;
+    });
+  }, [showIssuePendingOnly, taskConfigs, taskFilter, uniqueTaskTitles]);
+
   return (
     <div className="space-y-6">
       <SectionCard
@@ -40,43 +54,50 @@ export function TasksPanel({
         title={(
           <span className="flex items-center gap-2">
             <ClipboardList className="h-5 w-5 text-primary" />
-            Criar Tarefas
+            Criar tarefas
           </span>
         )}
         description="Uma tarefa por título único do CSV, mantendo exatamente o contrato de criação em lote."
         contentClassName="space-y-6"
       >
         <section className="rounded-lg border border-surface-border bg-surface-subtle p-4">
-          <div className="mb-4">
-            <h3 className="text-sm font-semibold text-foreground">Dados padrão da tarefa</h3>
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">Dados padrão da tarefa</h3>
+              <p className="text-xs text-muted-foreground">O nome amigável aparece primeiro; o campo da API fica entre parênteses.</p>
+            </div>
+            <details className="max-w-sm rounded-md border border-border bg-card p-3 text-xs text-muted-foreground">
+              <summary className="cursor-pointer font-semibold text-foreground">Termos Cecis</summary>
+              <p className="mt-2">Projeto identifica o produto, responsável recebe a tarefa, tipo define o fluxo e atividade classifica o lançamento de horas.</p>
+            </details>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             <div className="space-y-2">
-              <Label htmlFor="project-id" className="text-xs font-semibold text-muted-foreground">Projeto (project_id)</Label>
+              <Label htmlFor="project-id" className="text-xs font-semibold text-muted-foreground">Projeto <span className="font-mono font-normal">(project_id)</span></Label>
               <Input id="project-id" inputMode="numeric" value={taskDefaults.projectId} onChange={(event) => onTaskDefaultChange("projectId", event.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="assigned-to-id" className="text-xs font-semibold text-muted-foreground">Responsável (assigned_to_id)</Label>
+              <Label htmlFor="assigned-to-id" className="text-xs font-semibold text-muted-foreground">Responsável <span className="font-mono font-normal">(assigned_to_id)</span></Label>
               <Input id="assigned-to-id" inputMode="numeric" value={taskDefaults.assignedToId} onChange={(event) => onTaskDefaultChange("assignedToId", event.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="start-date" className="text-xs font-semibold text-muted-foreground">Início (start_date)</Label>
+              <Label htmlFor="start-date" className="text-xs font-semibold text-muted-foreground">Início <span className="font-mono font-normal">(start_date)</span></Label>
               <Input id="start-date" type="date" value={taskDefaults.startDate} onChange={(event) => onTaskDefaultChange("startDate", event.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="due-date" className="text-xs font-semibold text-muted-foreground">Prazo (due_date)</Label>
+              <Label htmlFor="due-date" className="text-xs font-semibold text-muted-foreground">Prazo <span className="font-mono font-normal">(due_date)</span></Label>
               <Input id="due-date" type="date" value={taskDefaults.dueDate} onChange={(event) => onTaskDefaultChange("dueDate", event.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="status-id" className="text-xs font-semibold text-muted-foreground">Status (status_id)</Label>
+              <Label htmlFor="status-id" className="text-xs font-semibold text-muted-foreground">Status <span className="font-mono font-normal">(status_id)</span></Label>
               <Input id="status-id" inputMode="numeric" value={taskDefaults.statusId} onChange={(event) => onTaskDefaultChange("statusId", event.target.value)} />
             </div>
             <div className="space-y-2 sm:col-span-2 xl:col-span-1">
-              <Label htmlFor="fixed-version-name" className="text-xs font-semibold text-muted-foreground">Sprint/Versão (fixed_version_name)</Label>
+              <Label htmlFor="fixed-version-name" className="text-xs font-semibold text-muted-foreground">Sprint/Versão <span className="font-mono font-normal">(fixed_version_name)</span></Label>
               <Input id="fixed-version-name" value={taskDefaults.fixedVersionName} onChange={(event) => onTaskDefaultChange("fixedVersionName", event.target.value)} />
             </div>
             <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="description" className="text-xs font-semibold text-muted-foreground">Descrição (description)</Label>
+              <Label htmlFor="description" className="text-xs font-semibold text-muted-foreground">Descrição <span className="font-mono font-normal">(description)</span></Label>
               <Textarea id="description" className="min-h-24" value={taskDefaults.description} onChange={(event) => onTaskDefaultChange("description", event.target.value)} />
             </div>
           </div>
@@ -90,46 +111,78 @@ export function TasksPanel({
             </div>
             <Badge variant="outline" className="border-primary/40 bg-primary/10 text-primary">{importedMonth}</Badge>
           </div>
-          <div className="space-y-3">
-            {uniqueTaskTitles.map((title) => (
-              <div key={title} className="grid grid-cols-1 gap-4 rounded-lg border border-surface-border bg-surface-raised p-4 shadow-sm lg:grid-cols-[minmax(0,1fr)_190px_190px_160px] lg:items-end">
-                <div className="min-w-0 lg:pb-1">
-                  <Label className="text-xs font-semibold text-muted-foreground">Assunto (subject)</Label>
-                  <p className="mt-2 break-words text-sm font-semibold leading-5 text-foreground">{title}</p>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs font-semibold text-muted-foreground">Tipo (tracker_id)</Label>
-                  <Select value={taskConfigs[title]?.trackerId ?? getDefaultTaskConfig(title).trackerId} onValueChange={(value) => onTaskConfigChange(title, "trackerId", value)}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {trackerOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>{option.label} ({option.value})</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs font-semibold text-muted-foreground">Atividade (activity_id)</Label>
-                  <Select value={taskConfigs[title]?.activityId ?? getDefaultTaskConfig(title).activityId} onValueChange={(value) => onTaskConfigChange(title, "activityId", value)}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {activityOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>{option.label} ({option.value})</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor={`issue-${normalizeTitle(title)}`} className="text-xs font-semibold text-muted-foreground">Issue pós-Cecis (issue_id)</Label>
-                  <Input id={`issue-${normalizeTitle(title)}`} inputMode="numeric" placeholder="Opcional" value={taskConfigs[title]?.issueId ?? ""} onChange={(event) => onTaskConfigChange(title, "issueId", event.target.value)} />
-                </div>
+
+          {denseMode && (
+            <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+              <div className="space-y-2">
+                <Label htmlFor="task-filter" className="text-xs font-semibold text-muted-foreground">Buscar título</Label>
+                <Input id="task-filter" value={taskFilter} onChange={(event) => setTaskFilter(event.target.value)} placeholder="Filtrar por assunto" />
               </div>
-            ))}
-          </div>
+              <label className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground">
+                <input
+                  type="checkbox"
+                  checked={showIssuePendingOnly}
+                  onChange={(event) => setShowIssuePendingOnly(event.target.checked)}
+                  className="h-4 w-4"
+                />
+                Somente sem issue
+              </label>
+            </div>
+          )}
+
+          {denseMode ? (
+            <div className="overflow-x-auto rounded-lg border border-surface-border bg-surface-raised">
+              <table className="w-full min-w-[760px] text-sm">
+                <thead className="bg-surface-subtle text-left text-xs text-muted-foreground">
+                  <tr>
+                    <th scope="col" className="sticky left-0 bg-surface-subtle px-3 py-2">Assunto</th>
+                    <th scope="col" className="px-3 py-2">Tipo</th>
+                    <th scope="col" className="px-3 py-2">Atividade</th>
+                    <th scope="col" className="px-3 py-2">Issue pós-Cecis</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredTaskTitles.map((title) => (
+                    <tr key={title} className="border-t border-surface-border">
+                      <td className="sticky left-0 max-w-sm bg-surface-raised px-3 py-3 font-medium text-foreground">{title}</td>
+                      <td className="px-3 py-3">
+                        <TaskSelect title={title} field="trackerId" value={taskConfigs[title]?.trackerId ?? getDefaultTaskConfig(title).trackerId} options={trackerOptions} onTaskConfigChange={onTaskConfigChange} />
+                      </td>
+                      <td className="px-3 py-3">
+                        <TaskSelect title={title} field="activityId" value={taskConfigs[title]?.activityId ?? getDefaultTaskConfig(title).activityId} options={activityOptions} onTaskConfigChange={onTaskConfigChange} />
+                      </td>
+                      <td className="px-3 py-3">
+                        <Input aria-label={`Issue pós-Cecis de ${title}`} inputMode="numeric" placeholder="Opcional" value={taskConfigs[title]?.issueId ?? ""} onChange={(event) => onTaskConfigChange(title, "issueId", event.target.value)} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredTaskTitles.map((title) => (
+                <div key={title} className="grid grid-cols-1 gap-4 rounded-lg border border-surface-border bg-surface-raised p-4 shadow-sm lg:grid-cols-[minmax(0,1fr)_190px_190px_160px] lg:items-end">
+                  <div className="min-w-0 lg:pb-1">
+                    <Label className="text-xs font-semibold text-muted-foreground">Assunto <span className="font-mono font-normal">(subject)</span></Label>
+                    <p className="mt-2 break-words text-sm font-semibold leading-5 text-foreground">{title}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-semibold text-muted-foreground">Tipo <span className="font-mono font-normal">(tracker_id)</span></Label>
+                    <TaskSelect title={title} field="trackerId" value={taskConfigs[title]?.trackerId ?? getDefaultTaskConfig(title).trackerId} options={trackerOptions} onTaskConfigChange={onTaskConfigChange} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-semibold text-muted-foreground">Atividade <span className="font-mono font-normal">(activity_id)</span></Label>
+                    <TaskSelect title={title} field="activityId" value={taskConfigs[title]?.activityId ?? getDefaultTaskConfig(title).activityId} options={activityOptions} onTaskConfigChange={onTaskConfigChange} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor={`issue-${normalizeTitle(title)}`} className="text-xs font-semibold text-muted-foreground">Issue pós-Cecis <span className="font-mono font-normal">(issue_id)</span></Label>
+                    <Input id={`issue-${normalizeTitle(title)}`} inputMode="numeric" placeholder="Opcional" value={taskConfigs[title]?.issueId ?? ""} onChange={(event) => onTaskConfigChange(title, "issueId", event.target.value)} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
       </SectionCard>
 
@@ -140,8 +193,41 @@ export function TasksPanel({
         value={tasksJsonText}
         copied={copied}
         testId="tasks-json"
+        validation={{
+          tone: uniqueTaskTitles.length > 0 ? "ready" : "blocked",
+          title: uniqueTaskTitles.length > 0 ? "Pronto para copiar" : "Sem tarefas para copiar",
+          description: uniqueTaskTitles.length > 0 ? `${uniqueTaskTitles.length} tarefa(s) serão enviadas no contrato de criação em lote.` : "Importe um CSV com títulos válidos antes de copiar.",
+        }}
+        copyDisabled={uniqueTaskTitles.length === 0}
         onCopy={onCopyTasks}
       />
     </div>
+  );
+}
+
+function TaskSelect({
+  title,
+  field,
+  value,
+  options,
+  onTaskConfigChange,
+}: {
+  title: string;
+  field: "trackerId" | "activityId";
+  value: string;
+  options: Array<{ value: string; label: string }>;
+  onTaskConfigChange: (title: string, key: keyof TaskConfig, value: string) => void;
+}) {
+  return (
+    <Select value={value} onValueChange={(nextValue) => onTaskConfigChange(title, field, nextValue)}>
+      <SelectTrigger className="w-full">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((option) => (
+          <SelectItem key={option.value} value={option.value}>{option.label} ({option.value})</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }

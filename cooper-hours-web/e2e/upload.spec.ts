@@ -36,6 +36,18 @@ test('initial screen is usable and free of legacy debug hooks', async ({ page })
   expect(await debugEndpoint.text()).not.toContain('Debug Collector initialized');
 });
 
+test('rendered Portuguese text is free of mojibake artifacts', async ({ page }) => {
+  const visibleText = await page.locator('body').innerText();
+  expect(visibleText).not.toMatch(/[ÃÂ�]|â€”|â†’|Ã§|Ã£|Ã¡|Ã©|Ã­|Ã³|Ãº/);
+  await expect(page.getByRole('heading', { name: /Validação diária de 8h/i })).toBeVisible();
+  await expect(page.getByText(/Envie o CSV para começar/i)).toBeVisible();
+
+  await page.locator('input[type="file"]').setInputFiles(path.join(testDir, 'fixtures', 'sample.csv'));
+  await expect(page.getByText('Conferência do período')).toBeVisible();
+  const reportText = await page.locator('body').innerText();
+  expect(reportText).not.toMatch(/[ÃÂ�]|â€”|â†’|Ã§|Ã£|Ã¡|Ã©|Ã­|Ã³|Ãº/);
+});
+
 test('CSV format instructions open in a readable modal', async ({ page }) => {
   await page.getByRole('button', { name: /Formato do arquivo/i }).click();
   await expect(page.getByRole('dialog', { name: /Formato do arquivo CSV/i })).toBeVisible();
@@ -43,6 +55,65 @@ test('CSV format instructions open in a readable modal', async ({ page }) => {
   await expect(page.getByText('Exemplo de CSV:')).toBeVisible();
   await expect(page.getByText('Tempo registrado soma').first()).toBeVisible();
   await expect(page.getByTestId('csv-format-example')).toBeVisible();
+});
+
+test('upload control is keyboard accessible and exposes workflow progress', async ({ page }) => {
+  const filePath = path.join(testDir, 'fixtures', 'sample.csv');
+  const uploadButton = page.getByRole('button', { name: /Selecionar CSV/i });
+
+  await expect(uploadButton).toBeVisible();
+  await uploadButton.focus();
+  const chooserPromise = page.waitForEvent('filechooser');
+  await page.keyboard.press('Enter');
+  const chooser = await chooserPromise;
+  await chooser.setFiles(filePath);
+
+  await expect(page.getByText('Arquivo analisado com sucesso')).toBeVisible({ timeout: 5000 });
+  await expect(page.getByRole('navigation', { name: /Progresso do fluxo CSV para Cecis/i })).toBeVisible();
+  await expect(page.getByText('1. Conferir')).toBeVisible();
+  await expect(page.getByText('4. Copiar lançamentos')).toBeVisible();
+});
+
+test('theme switcher supports dark, light, and high contrast modes', async ({ page }) => {
+  await page.getByRole('button', { name: /Usar tema Claro/i }).click();
+  await expect(page.locator('html')).toHaveClass(/light/);
+
+  await page.getByRole('button', { name: /Usar tema Alto contraste/i }).click();
+  await expect(page.locator('html')).toHaveClass(/contrast/);
+
+  await page.getByRole('button', { name: /Usar tema Escuro/i }).click();
+  await expect(page.locator('html')).toHaveClass(/dark/);
+});
+
+test('semantic status tokens meet readable contrast targets', async ({ page }) => {
+  const results = await page.evaluate(() => {
+    const hexToRgb = (hex: string) => {
+      const clean = hex.trim().replace('#', '');
+      const full = clean.length === 3 ? clean.split('').map((c) => c + c).join('') : clean.slice(0, 6);
+      return [0, 2, 4].map((idx) => parseInt(full.slice(idx, idx + 2), 16) / 255);
+    };
+    const luminance = (hex: string) => {
+      const rgb = hexToRgb(hex).map((value) => value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
+      return 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2];
+    };
+    const ratio = (fg: string, bg: string) => {
+      const [lighter, darker] = [luminance(fg), luminance(bg)].sort((a, b) => b - a);
+      return (lighter + 0.05) / (darker + 0.05);
+    };
+    const styles = getComputedStyle(document.documentElement);
+    const token = (name: string) => styles.getPropertyValue(name).trim();
+    return [
+      ['success', token('--success'), token('--card')],
+      ['warning', token('--warning'), token('--card')],
+      ['danger', token('--danger'), token('--card')],
+      ['selection', token('--selection'), token('--card')],
+      ['holiday', token('--holiday-foreground'), token('--background')],
+    ].map(([name, fg, bg]) => ({ name, value: ratio(fg, bg) }));
+  });
+
+  for (const result of results) {
+    expect.soft(result.value, `${result.name} contrast`).toBeGreaterThanOrEqual(4.5);
+  }
 });
 
 test('upload CSV and show full report flow', async ({ page }) => {
@@ -399,7 +470,7 @@ test('national holiday without time is highlighted and excluded from missing day
 
   const holiday = page.getByRole('button', { name: /03\/04\/2026 0\.0h feriado nacional Paixão de Cristo/i });
   await expect(holiday).toBeVisible();
-  await expect(holiday).toHaveClass(/bg-\[#A855F7\]\/15/);
+  await expect(holiday).toHaveClass(/bg-holiday-surface/);
   await expect(holiday).not.toContainText('Paixão de Cristo');
   await holiday.hover();
   await expect(page.getByRole('tooltip')).toContainText('Paixão de Cristo');

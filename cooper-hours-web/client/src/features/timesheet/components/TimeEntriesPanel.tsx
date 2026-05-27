@@ -39,13 +39,34 @@ export function TimeEntriesPanel({
   onApplyCecisResponse,
   onCopyTimeEntries,
 }: TimeEntriesPanelProps) {
+  const hasConflicts = conflictTaskTitles.length > 0;
+  const hasPending = pendingTimeEntryTitles.length > 0;
+  const hasReadyEntries = readyTimeEntriesLength > 0;
+  const validation = hasConflicts
+    ? {
+        tone: "blocked" as const,
+        title: "Conflito detectado",
+        description: `${conflictTaskTitles.length} tarefa(s) aparecem com conflito na resposta da Cecis. Resolva antes de copiar.`,
+      }
+    : hasPending
+      ? {
+          tone: "warning" as const,
+          title: `${pendingTimeEntryTitles.length} tarefa(s) sem issue_id`,
+          description: `${readyTimeEntriesLength} lançamento(s) podem ser copiados agora; os pendentes ficam fora do JSON.`,
+        }
+      : {
+          tone: "ready" as const,
+          title: "Pronto para copiar",
+          description: `${readyTimeEntriesLength} lançamento(s) mapeados com issue_id e activity_id.`,
+        };
+
   return (
     <div className="space-y-6">
       <SectionCard
         title={(
           <span className="flex items-center gap-2">
             <Clock3 className="h-5 w-5 text-primary" />
-            Registrar Tempo
+            Registrar tempo
           </span>
         )}
         description="Cole a resposta da Cecis para preencher os issue_id e gerar o JSON final de horas."
@@ -58,7 +79,7 @@ export function TimeEntriesPanel({
             data-testid="cecis-response"
             value={cecisResponseText}
             onChange={(event) => onCecisResponseChange(event.target.value)}
-            placeholder="Ex.: ID 291631 — Maestro-Refinamentos S2-Abr — tracker..."
+            placeholder="Ex.: ID 291631 - Maestro-Refinamentos S2-Abr - tracker..."
             className="min-h-32"
           />
           <Button type="button" size="sm" onClick={onApplyCecisResponse}>
@@ -82,6 +103,15 @@ export function TimeEntriesPanel({
           </Alert>
         ) : null}
 
+        {hasConflicts ? (
+          <Alert className="border-danger/30 bg-danger/10 text-danger">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Conflitos na resposta da Cecis: {conflictTaskTitles.join("; ")}
+            </AlertDescription>
+          </Alert>
+        ) : null}
+
         <div className="rounded-lg border border-border bg-surface-subtle p-4">
           <p className="mb-3 text-sm font-medium text-foreground">Mapa de tarefas</p>
           <div className="space-y-2">
@@ -93,7 +123,7 @@ export function TimeEntriesPanel({
                 <div key={title} className="flex flex-col gap-2 rounded-lg border border-border bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-foreground">{title}</p>
-                    <p className="text-xs text-muted-foreground">activity_id {config.activityId}</p>
+                    <p className="text-xs text-muted-foreground">Atividade <span className="font-mono">activity_id {config.activityId}</span></p>
                   </div>
                   <Badge className={hasConflict ? "bg-danger/20 text-danger" : isMapped ? "bg-success/20 text-success" : "bg-warning/20 text-warning"}>
                     {hasConflict ? "conflito" : isMapped ? `issue_id ${config.issueId}` : "pendente"}
@@ -106,11 +136,13 @@ export function TimeEntriesPanel({
       </SectionCard>
 
       <JsonPreview
-        title="JSON para Cecis - Time Entries"
+        title="JSON para Cecis - lançamentos"
         description="Saída manual com issue_id, spent_on e activity_id."
         value={timeEntriesJsonText}
         copied={copied}
         testId="time-entries-json"
+        validation={validation}
+        copyDisabled={!hasReadyEntries || hasConflicts}
         onCopy={onCopyTimeEntries}
       />
     </div>

@@ -1,6 +1,6 @@
 import { getNationalHoliday, getNationalHolidaysForMonth } from "./holidays";
 import { getBusinessDaysForMonth, isBusinessDay } from "./report";
-import type { DailySummary, TimesheetReport } from "./types";
+import type { CsvIssue, DailySummary, TimesheetReport } from "./types";
 
 function parseNumber(numberStr: string): number {
   if (!numberStr || numberStr.trim() === "") return 0.0;
@@ -81,6 +81,22 @@ function createDailySummary(date: string, isMissing: boolean): DailySummary {
   };
 }
 
+function createCsvIssue(
+  lineNumber: number,
+  reason: string,
+  suggestion: string,
+  date?: string,
+  hours?: string
+): CsvIssue {
+  return {
+    lineNumber,
+    reason,
+    suggestion,
+    date: date || undefined,
+    hours: hours || undefined,
+  };
+}
+
 export function processCsv(csvText: string): TimesheetReport {
   const lines = csvText.split("\n").map((line) => line.trim()).filter((line) => line.length > 0);
   if (lines.length === 0) throw new Error("CSV vazio");
@@ -107,6 +123,7 @@ export function processCsv(csvText: string): TimesheetReport {
   const importedDates: Set<string> = new Set();
   let overallTotalHours = 0;
   let ignoredLineCount = 0;
+  const ignoredLineIssues: CsvIssue[] = [];
   let duplicateLineCount = 0;
   let validLineCount = 0;
 
@@ -118,6 +135,11 @@ export function processCsv(csvText: string): TimesheetReport {
 
     if (cols.length <= Math.max(titleIdx, dataIdx, tempoIdx)) {
       ignoredLineCount++;
+      ignoredLineIssues.push(createCsvIssue(
+        i + 1,
+        "Campos obrigatórios ausentes",
+        "Exporte novamente com Título, Data e Tempo registrado soma."
+      ));
       continue;
     }
 
@@ -130,11 +152,37 @@ export function processCsv(csvText: string): TimesheetReport {
 
       if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
         ignoredLineCount++;
+        ignoredLineIssues.push(createCsvIssue(
+          i + 1,
+          "Data inválida",
+          "Use o formato YYYY-MM-DD, por exemplo 2026-04-01.",
+          date,
+          cols[tempoIdx]
+        ));
         continue;
       }
 
-      if (!title || hours === 0) {
+      if (!title) {
         ignoredLineCount++;
+        ignoredLineIssues.push(createCsvIssue(
+          i + 1,
+          "Título ausente",
+          "Preencha o título da tarefa no BusinessMap antes de exportar.",
+          date,
+          cols[tempoIdx]
+        ));
+        continue;
+      }
+
+      if (hours === 0) {
+        ignoredLineCount++;
+        ignoredLineIssues.push(createCsvIssue(
+          i + 1,
+          "Horas zeradas ou inválidas",
+          "Informe horas maiores que zero usando ponto ou vírgula decimal.",
+          date,
+          cols[tempoIdx]
+        ));
         continue;
       }
 
@@ -162,6 +210,11 @@ export function processCsv(csvText: string): TimesheetReport {
     } catch (e) {
       console.error(`Erro ao processar linha: ${line}`, e);
       ignoredLineCount++;
+      ignoredLineIssues.push(createCsvIssue(
+        i + 1,
+        "Falha ao processar linha",
+        "Revise separadores, aspas e campos obrigatórios desta linha."
+      ));
     }
   }
 
@@ -206,6 +259,7 @@ export function processCsv(csvText: string): TimesheetReport {
     dailySummaries: sortedSummaries,
     overallTotalHours,
     ignoredLineCount,
+    ignoredLineIssues,
     duplicateLineCount,
     rawLineCount: lines.length - 1,
     validLineCount,

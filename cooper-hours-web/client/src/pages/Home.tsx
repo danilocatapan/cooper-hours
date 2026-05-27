@@ -3,6 +3,7 @@ import { CheckCircle2, ClipboardList, Clock3 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AppShell } from "@/design-system/components/AppShell";
 import { EmptyState } from "@/design-system/components/EmptyState";
+import { WorkflowStepper } from "@/design-system/components/WorkflowStepper";
 import {
   applyCecisIssuesToTaskConfigs,
   buildTasksJson,
@@ -39,6 +40,7 @@ export default function Home() {
   const [copiedTarget, setCopiedTarget] = useState<CopiedTarget>(null);
   const [taskConfigs, setTaskConfigs] = useState<Record<string, TaskConfig>>({});
   const [cecisResponseText, setCecisResponseText] = useState("");
+  const [liveMessage, setLiveMessage] = useState("");
 
   const logoSrc = `${import.meta.env.BASE_URL}assets/coopersystem-logo.svg`;
   const reportStats = useMemo(() => getReportStats(report), [report]);
@@ -89,6 +91,9 @@ export default function Home() {
         const processedReport = processCsv(csvText);
 
         setReport(processedReport);
+        setLiveMessage(
+          `CSV analisado: ${processedReport.validLineCount} linhas válidas, ${processedReport.ignoredLineCount} ignoradas e ${processedReport.duplicateLineCount} duplicadas.`
+        );
         setSelectedDate(
           processedReport.dailySummaries.find((summary) => !summary.isMissing && summary.activities.length > 0)?.date
           ?? processedReport.dailySummaries.find((summary) => !summary.isMissing)?.date
@@ -103,6 +108,7 @@ export default function Home() {
         });
       } catch (err) {
         setError(err instanceof Error ? err.message : "Erro ao processar arquivo");
+        setLiveMessage("Não foi possível analisar o CSV. Revise o erro exibido no painel de upload.");
         setReport(null);
         setSelectedDate(null);
       } finally {
@@ -111,6 +117,7 @@ export default function Home() {
     };
     reader.onerror = () => {
       setError("Não foi possível ler o arquivo selecionado");
+      setLiveMessage("Não foi possível ler o arquivo selecionado.");
       setIsLoading(false);
       setReport(null);
       setSelectedDate(null);
@@ -154,11 +161,13 @@ export default function Home() {
 
   const applyCecisResponse = () => {
     setTaskConfigs((current) => applyCecisIssuesToTaskConfigs(cecisResponseText, uniqueTaskTitles, current));
+    setLiveMessage("Resposta da Cecis aplicada ao mapa de tarefas.");
   };
 
   const copyJson = async (jsonText: string, target: Exclude<CopiedTarget, null>) => {
     await navigator.clipboard.writeText(jsonText);
     setCopiedTarget(target);
+    setLiveMessage(target === "tasks" ? "JSON de tarefas copiado." : "JSON de lançamentos copiado.");
     window.setTimeout(() => setCopiedTarget(null), 1800);
   };
 
@@ -166,13 +175,13 @@ export default function Home() {
     if (!report) return;
 
     const rows = [
-      ["Data", "Dia util", "Total lancado", "Status", "Atividades"],
+      ["Data", "Dia útil", "Total lançado", "Status", "Atividades"],
       ...report.dailySummaries
         .slice()
         .sort((a, b) => a.date.localeCompare(b.date))
         .map((summary) => [
           summary.date,
-          summary.isBusinessDay ? "sim" : "nao",
+          summary.isBusinessDay ? "sim" : "não",
           summary.totalHours.toFixed(1),
           getStatusLabel(summary),
           summary.activities.map((activity) => `${activity.title} (${activity.hours.toFixed(1)}h)`).join(" | "),
@@ -193,6 +202,9 @@ export default function Home() {
 
   return (
     <AppShell logoSrc={logoSrc}>
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {liveMessage}
+      </div>
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-1">
           <UploadPanel
@@ -209,6 +221,16 @@ export default function Home() {
 
         <div className="lg:col-span-2">
           {report && reportStats ? (
+            <div className="space-y-6">
+            <WorkflowStepper
+              completeDays={reportStats.completeDays}
+              businessDayCount={report.businessDayCount}
+              taskCount={uniqueTaskTitles.length}
+              mappedTimeEntries={readyTimeEntries.length}
+              totalTimeEntries={timeEntries.length}
+              blockerCount={pendingTimeEntryTitles.length + conflictTaskTitles.length}
+            />
+
             <Tabs value={activeResultTab} onValueChange={setActiveResultTab} className="space-y-6">
               <TabsList className="h-auto w-full justify-start overflow-x-auto rounded-lg border border-border bg-card p-1">
                 <TabsTrigger value="conference" className="flex-none px-3 py-2">
@@ -268,6 +290,7 @@ export default function Home() {
                 />
               </TabsContent>
             </Tabs>
+            </div>
           ) : (
             <EmptyState />
           )}
