@@ -9,7 +9,8 @@
     "start": "NODE_ENV=production node dist/index.js",
     "preview": "vite preview --host",
     "check": "tsc --noEmit",
-    "test:e2e": "playwright test",
+    "test:e2e": "playwright test e2e/upload.spec.ts",
+    "test:a11y": "playwright test e2e/a11y.spec.ts",
     "format": "prettier --write ."
   },
   "dependencies": {
@@ -66,6 +67,7 @@
     "zod": "^4.1.12"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.3",
     "@builder.io/vite-plugin-jsx-loc": "^0.1.1",
     "@playwright/test": "^1.40.0",
     "@tailwindcss/typography": "^0.5.15",

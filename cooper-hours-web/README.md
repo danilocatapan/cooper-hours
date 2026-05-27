@@ -16,13 +16,13 @@ Este projeto adota o modelo **local-only**: o CSV é lido e processado no navega
 
 ### Matriz resumida de tratamento
 
-| Operacao | Dados envolvidos | Finalidade | Retencao | Compartilhamento |
+| Operação | Dados envolvidos | Finalidade | Retenção | Compartilhamento |
 |----------|------------------|------------|----------|------------------|
 | Upload local do CSV | Nome, IDs de cartão/tarefa, títulos, etiquetas, datas e horas | Conferir lançamentos e gerar relatório | Apenas durante a sessão da página | Nenhum automático |
 | Relatório na tela | Datas, horas, títulos e IDs | Revisão visual pelo usuário | Apenas durante a sessão da página | Nenhum automático |
 | Cópia de JSON | Títulos, datas, horas, issue_id e activity_id | Uso manual em Cecis ou sistema autorizado | Área de transferência do dispositivo | Manual pelo usuário |
 | Download CSV | Resumo de datas, horas e atividades | Arquivamento ou envio manual autorizado | Arquivo baixado no dispositivo | Manual pelo usuário |
-| Tema visual | Preferencia de tema | Acessibilidade e conforto visual | localStorage do navegador | Nenhum automatico |
+| Tema visual | Preferência de tema | Acessibilidade e conforto visual | localStorage do navegador | Nenhum automático |
 
 ### Textos base
 
@@ -69,6 +69,7 @@ Antes de uso institucional, revise estes textos com [PLACEHOLDER_RESPONSAVEL_JUR
   - Verde neon: `#00D084` (destaque e sucesso)
   - Laranja: `#FF6B5B` (alerta e aviso)
 - **Design system:** tokens semânticos em `client/src/index.css`, documentação em `client/src/design-system/README.md` e componentes reutilizáveis para shell, cards, métricas, status e prévias de JSON.
+- **Acessibilidade e UX:** matriz WCAG, guia UX 2026 e declaração de acessibilidade em `docs/`.
   
 - **Logo:** Símbolo em verde e branco, texto "cooper" em verde e "system" em branco
 - **Tema:** Dark mode por padrão

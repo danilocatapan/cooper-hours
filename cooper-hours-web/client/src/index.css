@@ -124,10 +124,10 @@
   --secondary: #3a4a5f;
   --secondary-foreground: #e0e0e0;
   --muted: #4a5a6f;
-  --muted-foreground: #b0b0b0;
-  --accent: #FF8A7A;
+  --muted-foreground: #CBD5E1;
+  --accent: #FFB4A8;
   --accent-foreground: #ffffff;
-  --destructive: #FF8A7A;
+  --destructive: #FFB4A8;
   --destructive-foreground: #ffffff;
   --success: #00D084;
   --success-foreground: #1a1a1a;
@@ -135,7 +135,7 @@
   --selection-foreground: #1a1a1a;
   --warning: #FFB020;
   --warning-foreground: #1a1a1a;
-  --danger: #FF8A7A;
+  --danger: #FFB4A8;
   --danger-foreground: #ffffff;
   --holiday: #D8B4FE;
   --holiday-foreground: #E9D5FF;
@@ -148,11 +148,11 @@
   --border: #3a4a5f;
   --input: #2a3a4f;
   --ring: #00D084;
-  --chart-1: #FF8A7A;
+  --chart-1: #FFB4A8;
   --chart-2: #00D084;
-  --chart-3: #00D084;
-  --chart-4: #00D084;
-  --chart-5: #00D084;
+  --chart-3: #93C5FD;
+  --chart-4: #FFB020;
+  --chart-5: #D8B4FE;
   --sidebar: #1a2332;
   --sidebar-foreground: #e0e0e0;
   --sidebar-accent: #00D084;
@@ -218,6 +218,28 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--selection) 35%, transparent);
+    color: var(--foreground);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      scroll-behavior: auto !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  @supports (color: contrast-color(white)) {
+    .contrast-aware {
+      color: contrast-color(var(--card));
+    }
   }
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]),

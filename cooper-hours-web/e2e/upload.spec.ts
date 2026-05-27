@@ -66,6 +66,7 @@ test('upload control is keyboard accessible and exposes workflow progress', asyn
   const uploadButton = page.getByRole('button', { name: /Selecionar CSV/i });
 
   await expect(uploadButton).toBeVisible();
+  await expect(uploadButton).toBeEnabled();
   await uploadButton.focus();
   const chooserPromise = page.waitForEvent('filechooser');
   await page.keyboard.press('Enter');
@@ -369,7 +370,7 @@ test('partially invalid CSV shows ignored-line feedback', async ({ page }) => {
 
 test('drag and drop uploads a CSV', async ({ page }) => {
   const filePath = path.join(testDir, 'fixtures', 'sample.csv');
-  await page.locator('label[for="file-upload"]').dispatchEvent('drop', {
+  await page.getByTestId('file-dropzone').dispatchEvent('drop', {
     dataTransfer: await page.evaluateHandle((fixturePath) => {
       const dataTransfer = new DataTransfer();
       const file = new File([
@@ -586,8 +587,8 @@ test('404 route is accessible and returns home', async ({ page }) => {
   await page.goto(new URL('rota-inexistente', base).toString(), { waitUntil: 'networkidle' });
 
   await expect(page.getByRole('heading', { name: '404' })).toBeVisible();
-  await expect(page.getByText('Page Not Found')).toBeVisible();
+  await expect(page.getByText('Página não encontrada')).toBeVisible();
 
-  await page.getByRole('button', { name: /Go Home/i }).click();
+  await page.getByRole('button', { name: /Voltar para o início/i }).click();
   await expect(page.getByText('Validar lançamento diário de 8h')).toBeVisible();
 });

@@ -80,8 +80,12 @@ export function TimeEntriesPanel({
             value={cecisResponseText}
             onChange={(event) => onCecisResponseChange(event.target.value)}
             placeholder="Ex.: ID 291631 - Maestro-Refinamentos S2-Abr - tracker..."
+            aria-describedby="cecis-response-help"
             className="min-h-32"
           />
+          <p id="cecis-response-help" className="text-xs leading-5 text-muted-foreground">
+            A resposta deve conter cada ID seguido do título da tarefa. O sistema só copia lançamentos com issue_id reconhecido.
+          </p>
           <Button type="button" size="sm" onClick={onApplyCecisResponse}>
             <Link2 className="h-4 w-4" />
             Mapear IDs
@@ -90,7 +94,7 @@ export function TimeEntriesPanel({
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
           <MetricCard label="registro(s) prontos" value={readyTimeEntriesLength} status="complete" />
-          <MetricCard label="tarefa(s) pendente(s)" value={pendingTimeEntryTitles.length} status="over" />
+          <MetricCard label="tarefa(s) pendente(s)" value={pendingTimeEntryTitles.length} status="overTarget" />
           <MetricCard label="lançamento(s) no CSV" value={timeEntries.length} />
         </div>
 
@@ -125,7 +129,7 @@ export function TimeEntriesPanel({
                     <p className="text-sm font-medium text-foreground">{title}</p>
                     <p className="text-xs text-muted-foreground">Atividade <span className="font-mono">activity_id {config.activityId}</span></p>
                   </div>
-                  <Badge className={hasConflict ? "bg-danger/20 text-danger" : isMapped ? "bg-success/20 text-success" : "bg-warning/20 text-warning"}>
+                  <Badge className={hasConflict ? "border-danger/30 bg-danger/10 text-foreground" : isMapped ? "border-success/30 bg-success/10 text-foreground" : "border-warning/40 bg-warning/10 text-foreground"}>
                     {hasConflict ? "conflito" : isMapped ? `issue_id ${config.issueId}` : "pendente"}
                   </Badge>
                 </div>

@@ -2,7 +2,7 @@ import type { ParsedIssue, TaskConfig, TaskDefaults, TimeEntryDraft } from "./ty
 import { getDefaultTaskConfig, normalizeTitle, parseInteger } from "./report";
 
 export function parseCecisIssues(text: string): ParsedIssue[] {
-  const matches = Array.from(text.matchAll(/ID\s+(\d+)\s*[—–-]\s*([^•\n\r]+?)(?=\s*[—–-]\s*(?:tracker|assigned_to|fixed_version|status|start|due)\b|$|•)/gi));
+  const matches = Array.from(text.matchAll(/ID\s+(\d+)\s*[-\u2013\u2014]\s*([^\u2022\n\r]+?)(?=\s*[-\u2013\u2014]\s*(?:tracker|assigned_to|fixed_version|status|start|due)\b|$|\u2022)/gi));
   return matches.map((match) => ({
     issueId: match[1],
     title: match[2].trim(),

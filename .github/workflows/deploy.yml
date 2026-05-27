@@ -58,6 +58,7 @@ jobs:
           for attempt in {1..45}; do
             if curl -fsS "$E2E_BASE_URL" >/dev/null; then
               pnpm run test:e2e
+              pnpm run test:a11y
               exit $?
             fi
             sleep 2

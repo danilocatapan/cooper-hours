@@ -72,26 +72,11 @@ export function TasksPanel({
             </details>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            <div className="space-y-2">
-              <Label htmlFor="project-id" className="text-xs font-semibold text-muted-foreground">Projeto <span className="font-mono font-normal">(project_id)</span></Label>
-              <Input id="project-id" inputMode="numeric" value={taskDefaults.projectId} onChange={(event) => onTaskDefaultChange("projectId", event.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="assigned-to-id" className="text-xs font-semibold text-muted-foreground">Responsável <span className="font-mono font-normal">(assigned_to_id)</span></Label>
-              <Input id="assigned-to-id" inputMode="numeric" value={taskDefaults.assignedToId} onChange={(event) => onTaskDefaultChange("assignedToId", event.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="start-date" className="text-xs font-semibold text-muted-foreground">Início <span className="font-mono font-normal">(start_date)</span></Label>
-              <Input id="start-date" type="date" value={taskDefaults.startDate} onChange={(event) => onTaskDefaultChange("startDate", event.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="due-date" className="text-xs font-semibold text-muted-foreground">Prazo <span className="font-mono font-normal">(due_date)</span></Label>
-              <Input id="due-date" type="date" value={taskDefaults.dueDate} onChange={(event) => onTaskDefaultChange("dueDate", event.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="status-id" className="text-xs font-semibold text-muted-foreground">Status <span className="font-mono font-normal">(status_id)</span></Label>
-              <Input id="status-id" inputMode="numeric" value={taskDefaults.statusId} onChange={(event) => onTaskDefaultChange("statusId", event.target.value)} />
-            </div>
+            <FieldInput id="project-id" label="Projeto" apiName="project_id" value={taskDefaults.projectId} onChange={(value) => onTaskDefaultChange("projectId", value)} />
+            <FieldInput id="assigned-to-id" label="Responsável" apiName="assigned_to_id" value={taskDefaults.assignedToId} onChange={(value) => onTaskDefaultChange("assignedToId", value)} />
+            <FieldInput id="start-date" label="Início" apiName="start_date" type="date" value={taskDefaults.startDate} onChange={(value) => onTaskDefaultChange("startDate", value)} />
+            <FieldInput id="due-date" label="Prazo" apiName="due_date" type="date" value={taskDefaults.dueDate} onChange={(value) => onTaskDefaultChange("dueDate", value)} />
+            <FieldInput id="status-id" label="Status" apiName="status_id" value={taskDefaults.statusId} onChange={(value) => onTaskDefaultChange("statusId", value)} />
             <div className="space-y-2 sm:col-span-2 xl:col-span-1">
               <Label htmlFor="fixed-version-name" className="text-xs font-semibold text-muted-foreground">Sprint/Versão <span className="font-mono font-normal">(fixed_version_name)</span></Label>
               <Input id="fixed-version-name" value={taskDefaults.fixedVersionName} onChange={(event) => onTaskDefaultChange("fixedVersionName", event.target.value)} />
@@ -144,15 +129,17 @@ export function TasksPanel({
                 <tbody>
                   {filteredTaskTitles.map((title) => (
                     <tr key={title} className="border-t border-surface-border">
-                      <td className="sticky left-0 max-w-sm bg-surface-raised px-3 py-3 font-medium text-foreground">{title}</td>
-                      <td className="px-3 py-3">
-                        <TaskSelect title={title} field="trackerId" value={taskConfigs[title]?.trackerId ?? getDefaultTaskConfig(title).trackerId} options={trackerOptions} onTaskConfigChange={onTaskConfigChange} />
+                      <td className="sticky left-0 max-w-sm bg-surface-raised px-3 py-3 font-medium text-foreground">
+                        <HighlightedTitle title={title} filter={taskFilter} />
                       </td>
                       <td className="px-3 py-3">
-                        <TaskSelect title={title} field="activityId" value={taskConfigs[title]?.activityId ?? getDefaultTaskConfig(title).activityId} options={activityOptions} onTaskConfigChange={onTaskConfigChange} />
+                        <TaskSelect title={title} label="Tipo" field="trackerId" value={taskConfigs[title]?.trackerId ?? getDefaultTaskConfig(title).trackerId} options={trackerOptions} onTaskConfigChange={onTaskConfigChange} />
                       </td>
                       <td className="px-3 py-3">
-                        <Input aria-label={`Issue pós-Cecis de ${title}`} inputMode="numeric" placeholder="Opcional" value={taskConfigs[title]?.issueId ?? ""} onChange={(event) => onTaskConfigChange(title, "issueId", event.target.value)} />
+                        <TaskSelect title={title} label="Atividade" field="activityId" value={taskConfigs[title]?.activityId ?? getDefaultTaskConfig(title).activityId} options={activityOptions} onTaskConfigChange={onTaskConfigChange} />
+                      </td>
+                      <td className="px-3 py-3">
+                        <IssueInput title={title} value={taskConfigs[title]?.issueId ?? ""} onTaskConfigChange={onTaskConfigChange} />
                       </td>
                     </tr>
                   ))}
@@ -165,19 +152,21 @@ export function TasksPanel({
                 <div key={title} className="grid grid-cols-1 gap-4 rounded-lg border border-surface-border bg-surface-raised p-4 shadow-sm lg:grid-cols-[minmax(0,1fr)_190px_190px_160px] lg:items-end">
                   <div className="min-w-0 lg:pb-1">
                     <Label className="text-xs font-semibold text-muted-foreground">Assunto <span className="font-mono font-normal">(subject)</span></Label>
-                    <p className="mt-2 break-words text-sm font-semibold leading-5 text-foreground">{title}</p>
+                    <p className="mt-2 break-words text-sm font-semibold leading-5 text-foreground">
+                      <HighlightedTitle title={title} filter={taskFilter} />
+                    </p>
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs font-semibold text-muted-foreground">Tipo <span className="font-mono font-normal">(tracker_id)</span></Label>
-                    <TaskSelect title={title} field="trackerId" value={taskConfigs[title]?.trackerId ?? getDefaultTaskConfig(title).trackerId} options={trackerOptions} onTaskConfigChange={onTaskConfigChange} />
+                    <TaskSelect title={title} label="Tipo" field="trackerId" value={taskConfigs[title]?.trackerId ?? getDefaultTaskConfig(title).trackerId} options={trackerOptions} onTaskConfigChange={onTaskConfigChange} />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs font-semibold text-muted-foreground">Atividade <span className="font-mono font-normal">(activity_id)</span></Label>
-                    <TaskSelect title={title} field="activityId" value={taskConfigs[title]?.activityId ?? getDefaultTaskConfig(title).activityId} options={activityOptions} onTaskConfigChange={onTaskConfigChange} />
+                    <TaskSelect title={title} label="Atividade" field="activityId" value={taskConfigs[title]?.activityId ?? getDefaultTaskConfig(title).activityId} options={activityOptions} onTaskConfigChange={onTaskConfigChange} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor={`issue-${normalizeTitle(title)}`} className="text-xs font-semibold text-muted-foreground">Issue pós-Cecis <span className="font-mono font-normal">(issue_id)</span></Label>
-                    <Input id={`issue-${normalizeTitle(title)}`} inputMode="numeric" placeholder="Opcional" value={taskConfigs[title]?.issueId ?? ""} onChange={(event) => onTaskConfigChange(title, "issueId", event.target.value)} />
+                    <IssueInput id={`issue-${normalizeTitle(title)}`} title={title} value={taskConfigs[title]?.issueId ?? ""} onTaskConfigChange={onTaskConfigChange} />
                   </div>
                 </div>
               ))}
@@ -205,14 +194,39 @@ export function TasksPanel({
   );
 }
 
+function FieldInput({
+  id,
+  label,
+  apiName,
+  type = "text",
+  value,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  apiName: string;
+  type?: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={id} className="text-xs font-semibold text-muted-foreground">{label} <span className="font-mono font-normal">({apiName})</span></Label>
+      <Input id={id} type={type} inputMode={type === "date" ? undefined : "numeric"} value={value} onChange={(event) => onChange(event.target.value)} />
+    </div>
+  );
+}
+
 function TaskSelect({
   title,
+  label,
   field,
   value,
   options,
   onTaskConfigChange,
 }: {
   title: string;
+  label: string;
   field: "trackerId" | "activityId";
   value: string;
   options: Array<{ value: string; label: string }>;
@@ -220,14 +234,61 @@ function TaskSelect({
 }) {
   return (
     <Select value={value} onValueChange={(nextValue) => onTaskConfigChange(title, field, nextValue)}>
-      <SelectTrigger className="w-full">
+      <SelectTrigger className="w-full" aria-label={`${label} de ${title}`}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
         {options.map((option) => (
-          <SelectItem key={option.value} value={option.value}>{option.label} ({option.value})</SelectItem>
+          <SelectItem key={option.value} value={option.value}>{option.label} - ID {option.value}</SelectItem>
         ))}
       </SelectContent>
     </Select>
+  );
+}
+
+function IssueInput({
+  id,
+  title,
+  value,
+  onTaskConfigChange,
+}: {
+  id?: string;
+  title: string;
+  value: string;
+  onTaskConfigChange: (title: string, key: keyof TaskConfig, value: string) => void;
+}) {
+  const invalid = Boolean(value) && !/^\d+$/.test(value);
+  return (
+    <>
+      <Input
+        id={id}
+        aria-label={id ? undefined : `Issue pós-Cecis de ${title}`}
+        aria-invalid={invalid}
+        inputMode="numeric"
+        placeholder="Opcional"
+        value={value}
+        onChange={(event) => onTaskConfigChange(title, "issueId", event.target.value)}
+      />
+      {invalid && <p className="mt-1 text-xs text-danger">Use apenas números.</p>}
+    </>
+  );
+}
+
+function HighlightedTitle({ title, filter }: { title: string; filter: string }) {
+  const normalizedFilter = normalizeTitle(filter);
+  if (!normalizedFilter) return <>{title}</>;
+
+  const normalizedTitle = normalizeTitle(title);
+  if (!normalizedTitle.includes(normalizedFilter)) return <>{title}</>;
+
+  const rawIndex = title.toLowerCase().indexOf(filter.toLowerCase());
+  if (rawIndex < 0) return <>{title}</>;
+
+  return (
+    <>
+      {title.slice(0, rawIndex)}
+      <mark className="rounded-sm bg-selection/20 px-0.5 text-foreground">{title.slice(rawIndex, rawIndex + filter.length)}</mark>
+      {title.slice(rawIndex + filter.length)}
+    </>
   );
 }

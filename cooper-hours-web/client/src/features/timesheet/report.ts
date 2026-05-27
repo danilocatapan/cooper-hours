@@ -34,7 +34,7 @@ export function getDefaultTaskConfig(title: string): TaskConfig {
 export function getDailyStatus(totalHours: number): DailyStatus {
   const difference = totalHours - DAILY_TARGET_HOURS;
   if (Math.abs(difference) < HOUR_TOLERANCE) return "complete";
-  return difference < 0 ? "pending" : "over";
+  return difference < 0 ? "underTarget" : "overTarget";
 }
 
 export function isBusinessDay(date: string): boolean {
@@ -80,7 +80,7 @@ export function getStatusLabel(summary: DailySummary): string {
   const difference = Math.abs(summary.totalHours - DAILY_TARGET_HOURS);
 
   if (status === "complete") return "8h completas";
-  if (status === "pending") return `Pendente: faltam ${difference.toFixed(1)}h`;
+  if (status === "underTarget") return `Pendente: faltam ${difference.toFixed(1)}h`;
   return `Acima da meta: +${difference.toFixed(1)}h`;
 }
 
@@ -98,8 +98,8 @@ export function getReportStats(report: TimesheetReport | null) {
 
   const expectedSummaries = report.dailySummaries.filter((summary) => summary.isBusinessDay);
   const completeDays = expectedSummaries.filter((summary) => getDailyStatus(summary.totalHours) === "complete").length;
-  const pendingDays = expectedSummaries.filter((summary) => getDailyStatus(summary.totalHours) === "pending").length;
-  const overDays = expectedSummaries.filter((summary) => getDailyStatus(summary.totalHours) === "over").length;
+  const pendingDays = expectedSummaries.filter((summary) => getDailyStatus(summary.totalHours) === "underTarget").length;
+  const overDays = expectedSummaries.filter((summary) => getDailyStatus(summary.totalHours) === "overTarget").length;
   const expectedTotalHours = report.businessDayCount * DAILY_TARGET_HOURS;
 
   return {

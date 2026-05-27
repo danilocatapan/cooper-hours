@@ -17,10 +17,28 @@ export interface DailySummary {
 export interface CsvIssue {
   lineNumber: number;
   reason: string;
+  type: CsvIssueType;
   date?: string;
   hours?: string;
   suggestion: string;
 }
+
+export type CanonicalCsvField = "user" | "cardId" | "title" | "labels" | "date" | "timeTotal";
+
+export interface CsvHeaderAlias {
+  field: CanonicalCsvField;
+  aliases: string[];
+}
+
+export interface CsvHeaderRecognition {
+  field: CanonicalCsvField;
+  label: string;
+  columnIndex: number;
+  matchedHeader: string | null;
+  required: boolean;
+}
+
+export type CsvIssueType = "missing-fields" | "invalid-date" | "missing-title" | "invalid-hours" | "parse-failure";
 
 export interface TimesheetReport {
   dailySummaries: DailySummary[];
@@ -39,6 +57,7 @@ export interface TimesheetReport {
   cardIds: string[];
   minImportedDate: string;
   maxImportedDate: string;
+  headerRecognition: CsvHeaderRecognition[];
 }
 
 export interface TaskDefaults {
@@ -72,5 +91,8 @@ export interface TimeEntryDraft {
   title: string;
 }
 
-export type DailyStatus = "complete" | "pending" | "over";
-export type TimesheetStatus = DailyStatus | "missing" | "optional" | "holiday" | "invalid" | "neutral";
+export type DailyStatus = "complete" | "underTarget" | "overTarget";
+export type LegacyDailyStatus = "pending" | "over";
+export type TimesheetStatus = DailyStatus | LegacyDailyStatus | "missing" | "optional" | "holiday" | "invalid" | "neutral";
+
+export type SensitiveActionKind = "copyTasks" | "copyTimeEntries" | "downloadReport";

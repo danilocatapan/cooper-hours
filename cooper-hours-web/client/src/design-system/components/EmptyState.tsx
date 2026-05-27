@@ -22,11 +22,11 @@ export function EmptyState() {
             <p className="mt-2 text-muted-foreground">Dia pronto para conferência final.</p>
           </div>
           <div className="rounded-lg border border-danger/30 bg-card p-3">
-            <StatusBadge status="pending">Pendente</StatusBadge>
+            <StatusBadge status="underTarget">Pendente</StatusBadge>
             <p className="mt-2 text-muted-foreground">Faltam horas para fechar a meta.</p>
           </div>
           <div className="rounded-lg border border-warning/40 bg-card p-3">
-            <StatusBadge status="over">Acima da meta</StatusBadge>
+            <StatusBadge status="overTarget">Acima da meta</StatusBadge>
             <p className="mt-2 text-muted-foreground">Há horas a revisar acima de 8h.</p>
           </div>
         </div>

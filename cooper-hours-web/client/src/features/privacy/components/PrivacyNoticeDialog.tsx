@@ -24,7 +24,7 @@ const treatmentItems = [
     body: "Cópias para clipboard, downloads e colagens em BusinessMap, Cecis ou outros sistemas dependem de ação manual do usuário.",
   },
   {
-    title: "Retencao",
+    title: "Retenção",
     body: "Os dados importados ficam apenas no estado da página e podem ser removidos com Limpar dados importados. A preferência de tema pode ficar no navegador.",
   },
 ];

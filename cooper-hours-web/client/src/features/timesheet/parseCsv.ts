@@ -1,6 +1,34 @@
 import { getNationalHoliday, getNationalHolidaysForMonth } from "./holidays";
 import { getBusinessDaysForMonth, isBusinessDay } from "./report";
-import type { CsvIssue, DailySummary, TimesheetReport } from "./types";
+import type {
+  CanonicalCsvField,
+  CsvHeaderAlias,
+  CsvHeaderRecognition,
+  CsvIssue,
+  CsvIssueType,
+  DailySummary,
+  TimesheetReport,
+} from "./types";
+
+const csvHeaderAliases: CsvHeaderAlias[] = [
+  { field: "user", aliases: ["Usuário", "Usuario", "UsuÃ¡rio", "UsuÃƒÂ¡rio", "TÃ¡rio"] },
+  { field: "cardId", aliases: ["ID do cartão", "ID do cartao", "Cartão", "Cartao", "Card ID", "ID", "ID do cartÃ£o", "ID do cartÃƒÂ£o"] },
+  { field: "title", aliases: ["Título", "Titulo", "TÃ­tulo", "TÃƒÂ­tulo"] },
+  { field: "labels", aliases: ["Etiquetas", "Labels", "Tags"] },
+  { field: "date", aliases: ["Data", "Date"] },
+  { field: "timeTotal", aliases: ["Tempo registrado soma", "Tempo", "Horas", "Time spent"] },
+];
+
+const csvFieldLabels: Record<CanonicalCsvField, string> = {
+  user: "Usuário",
+  cardId: "ID do cartão",
+  title: "Título",
+  labels: "Etiquetas",
+  date: "Data",
+  timeTotal: "Tempo registrado soma",
+};
+
+const requiredFields: CanonicalCsvField[] = ["title", "date", "timeTotal"];
 
 function parseNumber(numberStr: string): number {
   if (!numberStr || numberStr.trim() === "") return 0.0;
@@ -56,15 +84,41 @@ function splitLine(line: string, separator: string): string[] {
   return cols;
 }
 
-function findHeaderIndex(headers: string[], ...possibleNames: string[]): number {
+function normalizeHeader(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function findHeaderIndex(headers: string[], possibleNames: string[]): number {
   for (const name of possibleNames) {
+    const normalizedName = normalizeHeader(name);
     for (let i = 0; i < headers.length; i++) {
-      if (headers[i].toLowerCase() === name.toLowerCase()) {
+      if (normalizeHeader(headers[i]) === normalizedName) {
         return i;
       }
     }
   }
   return -1;
+}
+
+function recognizeHeaders(headers: string[]): CsvHeaderRecognition[] {
+  return csvHeaderAliases.map(({ field, aliases }) => {
+    const columnIndex = findHeaderIndex(headers, aliases);
+    return {
+      field,
+      label: csvFieldLabels[field],
+      columnIndex,
+      matchedHeader: columnIndex >= 0 ? headers[columnIndex] : null,
+      required: requiredFields.includes(field),
+    };
+  });
+}
+
+function getHeaderIndex(recognition: CsvHeaderRecognition[], field: CanonicalCsvField): number {
+  return recognition.find((item) => item.field === field)?.columnIndex ?? -1;
 }
 
 function createDailySummary(date: string, isMissing: boolean): DailySummary {
@@ -83,6 +137,7 @@ function createDailySummary(date: string, isMissing: boolean): DailySummary {
 
 function createCsvIssue(
   lineNumber: number,
+  type: CsvIssueType,
   reason: string,
   suggestion: string,
   date?: string,
@@ -90,6 +145,7 @@ function createCsvIssue(
 ): CsvIssue {
   return {
     lineNumber,
+    type,
     reason,
     suggestion,
     date: date || undefined,
@@ -104,12 +160,13 @@ export function processCsv(csvText: string): TimesheetReport {
   const headerLine = lines[0];
   const separator = detectSeparator(headerLine);
   const headers = splitLine(headerLine, separator).map((h) => h.trim().replace(/"/g, ""));
+  const headerRecognition = recognizeHeaders(headers);
 
-  const titleIdx = findHeaderIndex(headers, "Título", "TÃ­tulo", "TÃƒÂ­tulo", "Titulo");
-  const dataIdx = findHeaderIndex(headers, "Data");
-  const tempoIdx = findHeaderIndex(headers, "Tempo registrado soma", "Tempo");
-  const userIdx = findHeaderIndex(headers, "Usuário", "TÃ¡rio", "UsuÃ¡rio", "UsuÃƒÂ¡rio", "Usuario");
-  const cardIdx = findHeaderIndex(headers, "ID do cartão", "ID do cartÃ£o", "ID do cartÃƒÂ£o", "ID do cartao", "ID", "Cartão", "CartÃ£o", "CartÃƒÂ£o", "Cartao", "Card ID");
+  const titleIdx = getHeaderIndex(headerRecognition, "title");
+  const dataIdx = getHeaderIndex(headerRecognition, "date");
+  const tempoIdx = getHeaderIndex(headerRecognition, "timeTotal");
+  const userIdx = getHeaderIndex(headerRecognition, "user");
+  const cardIdx = getHeaderIndex(headerRecognition, "cardId");
 
   if (titleIdx === -1 || dataIdx === -1 || tempoIdx === -1) {
     throw new Error("Colunas obrigatórias não encontradas (Título, Data, Tempo registrado soma)");
@@ -137,6 +194,7 @@ export function processCsv(csvText: string): TimesheetReport {
       ignoredLineCount++;
       ignoredLineIssues.push(createCsvIssue(
         i + 1,
+        "missing-fields",
         "Campos obrigatórios ausentes",
         "Exporte novamente com Título, Data e Tempo registrado soma."
       ));
@@ -154,6 +212,7 @@ export function processCsv(csvText: string): TimesheetReport {
         ignoredLineCount++;
         ignoredLineIssues.push(createCsvIssue(
           i + 1,
+          "invalid-date",
           "Data inválida",
           "Use o formato YYYY-MM-DD, por exemplo 2026-04-01.",
           date,
@@ -166,6 +225,7 @@ export function processCsv(csvText: string): TimesheetReport {
         ignoredLineCount++;
         ignoredLineIssues.push(createCsvIssue(
           i + 1,
+          "missing-title",
           "Título ausente",
           "Preencha o título da tarefa no BusinessMap antes de exportar.",
           date,
@@ -178,6 +238,7 @@ export function processCsv(csvText: string): TimesheetReport {
         ignoredLineCount++;
         ignoredLineIssues.push(createCsvIssue(
           i + 1,
+          "invalid-hours",
           "Horas zeradas ou inválidas",
           "Informe horas maiores que zero usando ponto ou vírgula decimal.",
           date,
@@ -211,6 +272,7 @@ export function processCsv(csvText: string): TimesheetReport {
       ignoredLineCount++;
       ignoredLineIssues.push(createCsvIssue(
         i + 1,
+        "parse-failure",
         "Falha ao processar linha",
         "Revise separadores, aspas e campos obrigatórios desta linha."
       ));
@@ -271,5 +333,6 @@ export function processCsv(csvText: string): TimesheetReport {
     cardIds: Array.from(cardIds).sort(),
     minImportedDate: sortedImportedDates[0] ?? `${importedMonth}-01`,
     maxImportedDate: sortedImportedDates[sortedImportedDates.length - 1] ?? `${importedMonth}-01`,
+    headerRecognition,
   };
 }

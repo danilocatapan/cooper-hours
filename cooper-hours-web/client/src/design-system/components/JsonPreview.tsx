@@ -48,9 +48,9 @@ export function JsonPreview({ title, description, value, copied, testId, onCopy,
         <div
           className={cn(
             "mb-3 flex items-start gap-3 rounded-lg border p-3 text-sm",
-            validation.tone === "ready" && "border-success/30 bg-success/10 text-success",
-            validation.tone === "warning" && "border-warning/40 bg-warning/10 text-warning",
-            validation.tone === "blocked" && "border-danger/30 bg-danger/10 text-danger"
+            validation.tone === "ready" && "border-success/30 bg-success/10 text-foreground",
+            validation.tone === "warning" && "border-warning/40 bg-warning/10 text-foreground",
+            validation.tone === "blocked" && "border-danger/30 bg-danger/10 text-foreground"
           )}
         >
           <ValidationIcon className="mt-0.5 h-4 w-4 shrink-0" />
@@ -63,7 +63,12 @@ export function JsonPreview({ title, description, value, copied, testId, onCopy,
       <p className="mb-3 rounded-lg border border-selection/30 bg-selection/10 p-3 text-xs leading-5 text-foreground">
         {privacyNotice ?? "Este conteúdo pode conter dados pessoais. Copie apenas para sistemas autorizados e conforme a finalidade informada no Aviso de Privacidade."}
       </p>
-      <pre data-testid={testId} className={cn("max-h-[420px] overflow-auto rounded-lg border p-4", surfaceClass.code, textClass.mono)}>
+      <pre
+        data-testid={testId}
+        tabIndex={0}
+        aria-label={`${title}: prévia rolável`}
+        className={cn("max-h-[420px] overflow-auto rounded-lg border p-4 focus-visible:ring-[3px] focus-visible:ring-ring/45", surfaceClass.code, textClass.mono)}
+      >
         {value}
       </pre>
     </SectionCard>

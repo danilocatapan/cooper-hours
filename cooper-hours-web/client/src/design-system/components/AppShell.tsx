@@ -23,7 +23,7 @@ export function AppShell({ logoSrc, children }: AppShellProps) {
               <img src={logoSrc} alt="Coopersystem" className="h-12" />
               <div>
                 <h1 className={textClass.pageTitle}>Validação diária de 8h</h1>
-                <p className="text-sm text-muted-foreground">BusinessMap → Coopersystem</p>
+                <p className="text-sm text-muted-foreground">BusinessMap - Coopersystem</p>
               </div>
             </div>
             <ThemeSwitcher />
@@ -35,7 +35,8 @@ export function AppShell({ logoSrc, children }: AppShellProps) {
 
       <footer className="mt-12 border-t border-border bg-card">
         <div className="container py-6 text-center text-sm text-muted-foreground">
-          <p>Validação diária de 8h BusinessMap → Coopersystem v1.0</p>
+          <p>Validação diária de 8h BusinessMap - Coopersystem v1.0</p>
+          <p className="mt-1">Acessibilidade-alvo: WCAG 2.2 AA, com processamento local dos dados.</p>
         </div>
       </footer>
     </div>

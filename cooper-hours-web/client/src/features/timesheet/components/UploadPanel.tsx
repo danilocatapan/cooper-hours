@@ -1,5 +1,5 @@
-import type { ChangeEvent, DragEvent, KeyboardEvent } from "react";
-import { AlertCircle, Info, ShieldCheck, Trash2, Upload } from "lucide-react";
+import { useMemo, useRef, useState, type ChangeEvent, type DragEvent } from "react";
+import { AlertCircle, Download, Info, ShieldCheck, Trash2, Upload } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -11,10 +11,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
-import type { TimesheetReport } from "../types";
 import { SectionCard } from "@/design-system/components/SectionCard";
 import { PrivacyNoticeDialog } from "@/features/privacy/components/PrivacyNoticeDialog";
+import { cn } from "@/lib/utils";
+import type { CsvIssueType, TimesheetReport } from "../types";
 
 const requiredCsvFields = [
   {
@@ -45,12 +45,14 @@ interface UploadPanelProps {
   error: string | null;
   report: TimesheetReport | null;
   completeDays: number;
+  selectedFileName: string | null;
   privacyAcknowledged: boolean;
   onDraggingChange: (isDragging: boolean) => void;
   onDrop: (event: DragEvent<HTMLDivElement>) => void;
   onFileUpload: (event: ChangeEvent<HTMLInputElement>) => void;
   onPrivacyAcknowledgedChange: (acknowledged: boolean) => void;
   onClearImportedData: () => void;
+  onDownloadCsvIssues: () => void;
 }
 
 export function UploadPanel({
@@ -59,19 +61,16 @@ export function UploadPanel({
   error,
   report,
   completeDays,
+  selectedFileName,
   privacyAcknowledged,
   onDraggingChange,
   onDrop,
   onFileUpload,
   onPrivacyAcknowledgedChange,
   onClearImportedData,
+  onDownloadCsvIssues,
 }: UploadPanelProps) {
-  const handlePickerKeyDown = (event: KeyboardEvent<HTMLLabelElement>) => {
-    if (!privacyAcknowledged) return;
-    if (event.key !== "Enter" && event.key !== " ") return;
-    event.preventDefault();
-    document.getElementById("file-upload")?.click();
-  };
+  const inputRef = useRef<HTMLInputElement>(null);
 
   return (
     <SectionCard
@@ -105,6 +104,7 @@ export function UploadPanel({
         </div>
 
         <div
+          data-testid="file-dropzone"
           onDragEnter={(event) => {
             event.preventDefault();
             if (!isLoading && privacyAcknowledged) onDraggingChange(true);
@@ -123,6 +123,7 @@ export function UploadPanel({
           )}
         >
           <input
+            ref={inputRef}
             type="file"
             accept=".csv,.tsv,.txt"
             onChange={onFileUpload}
@@ -130,17 +131,16 @@ export function UploadPanel({
             className="sr-only"
             id="file-upload"
             tabIndex={-1}
-            aria-hidden="true"
+            aria-label="Arquivo CSV do BusinessMap"
           />
-          <label
-            htmlFor="file-upload"
-            role="button"
-            tabIndex={isLoading || !privacyAcknowledged ? -1 : 0}
+          <Button
+            type="button"
+            variant="ghost"
             aria-describedby="file-upload-help"
-            aria-disabled={!privacyAcknowledged || isLoading}
-            onKeyDown={handlePickerKeyDown}
+            disabled={isLoading || !privacyAcknowledged}
+            onClick={() => inputRef.current?.click()}
             className={cn(
-              "mx-auto flex max-w-xs flex-col items-center rounded-lg px-4 py-2 outline-none focus-visible:ring-[3px] focus-visible:ring-selection/50",
+              "mx-auto flex h-auto max-w-xs flex-col items-center rounded-lg px-4 py-3 outline-none focus-visible:ring-[3px] focus-visible:ring-selection/50",
               privacyAcknowledged && !isLoading ? "cursor-pointer" : "cursor-not-allowed"
             )}
           >
@@ -149,9 +149,14 @@ export function UploadPanel({
             <span id="file-upload-help" className="mt-1 text-xs text-muted-foreground">
               {privacyAcknowledged ? "Use Enter, Espaço ou arraste um arquivo CSV aqui" : "Confirme a ciência sobre privacidade antes de importar"}
             </span>
-          </label>
+          </Button>
+          {selectedFileName && (
+            <p className="mt-3 text-xs text-muted-foreground">
+              Último arquivo selecionado: <span className="font-medium text-foreground">{selectedFileName}</span>
+            </p>
+          )}
           <p className="sr-only" role="status" aria-live="polite">
-            {isDragging ? "Arquivo sobre a area de upload. Solte para importar." : "Upload por clique ou teclado disponivel."}
+            {isDragging ? "Arquivo sobre a área de upload. Solte para importar." : "Upload por clique ou teclado disponível."}
           </p>
         </div>
 
@@ -172,7 +177,7 @@ export function UploadPanel({
           <div className="space-y-3 rounded-lg border border-success/30 bg-success/10 p-4">
             <div>
               <p className="text-sm font-medium text-success">Arquivo analisado com sucesso</p>
-              <p className="mt-1 text-xs text-success/80">
+              <p className="mt-1 text-xs text-foreground">
                 {completeDays} de {report.businessDayCount} dias úteis com 8h completas
               </p>
             </div>
@@ -200,26 +205,7 @@ export function UploadPanel({
         )}
 
         {report && report.ignoredLineIssues.length > 0 && (
-          <details className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm">
-            <summary className="cursor-pointer font-semibold text-warning">
-              Erros do CSV ({report.ignoredLineIssues.length})
-            </summary>
-            <div className="mt-3 space-y-2">
-              {report.ignoredLineIssues.slice(0, 8).map((issue) => (
-                <div key={`${issue.lineNumber}-${issue.reason}`} className="rounded-md border border-border bg-card p-3">
-                  <p className="font-medium text-foreground">Linha {issue.lineNumber}: {issue.reason}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {issue.date ? `Data: ${issue.date}. ` : ""}
-                    {issue.hours ? `Horas: ${issue.hours}. ` : ""}
-                    {issue.suggestion}
-                  </p>
-                </div>
-              ))}
-              {report.ignoredLineIssues.length > 8 && (
-                <p className="text-xs text-muted-foreground">Mostrando as 8 primeiras linhas com erro.</p>
-              )}
-            </div>
-          </details>
+          <CsvIssuesPanel report={report} onDownloadCsvIssues={onDownloadCsvIssues} />
         )}
 
         {report && report.duplicateLineCount > 0 && (
@@ -288,5 +274,85 @@ export function UploadPanel({
         </Dialog>
       </div>
     </SectionCard>
+  );
+}
+
+const issueTypeLabels: Record<CsvIssueType | "all", string> = {
+  all: "Todos os tipos",
+  "missing-fields": "Campos ausentes",
+  "invalid-date": "Data inválida",
+  "missing-title": "Título ausente",
+  "invalid-hours": "Horas inválidas",
+  "parse-failure": "Falha de leitura",
+};
+
+function CsvIssuesPanel({
+  report,
+  onDownloadCsvIssues,
+}: {
+  report: TimesheetReport;
+  onDownloadCsvIssues: () => void;
+}) {
+  const [issueFilter, setIssueFilter] = useState<CsvIssueType | "all">("all");
+  const issueTypes = useMemo(() => {
+    return Array.from(new Set(report.ignoredLineIssues.map((issue) => issue.type))).sort();
+  }, [report.ignoredLineIssues]);
+  const visibleIssues = issueFilter === "all"
+    ? report.ignoredLineIssues
+    : report.ignoredLineIssues.filter((issue) => issue.type === issueFilter);
+
+  return (
+    <details className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm" open>
+      <summary className="cursor-pointer font-semibold text-warning">
+        Inconsistências do CSV ({report.ignoredLineIssues.length})
+      </summary>
+      <div className="mt-3 space-y-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <label className="text-xs font-medium text-foreground" htmlFor="csv-issue-filter">
+            Filtrar inconsistências
+          </label>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <select
+              id="csv-issue-filter"
+              value={issueFilter}
+              onChange={(event) => setIssueFilter(event.target.value as CsvIssueType | "all")}
+              className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45"
+            >
+              <option value="all">{issueTypeLabels.all}</option>
+              {issueTypes.map((type) => (
+                <option key={type} value={type}>{issueTypeLabels[type]}</option>
+              ))}
+            </select>
+            <Button type="button" variant="outline" size="sm" onClick={onDownloadCsvIssues}>
+              <Download className="h-4 w-4" />
+              Baixar inconsistências
+            </Button>
+          </div>
+        </div>
+
+        <div className="space-y-2" aria-live="polite">
+          {visibleIssues.slice(0, 8).map((issue) => (
+            <div key={`${issue.lineNumber}-${issue.reason}`} className="rounded-md border border-border bg-card p-3">
+              <p className="font-medium text-foreground">
+                Linha {issue.lineNumber}: {issue.reason}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {issue.date ? `Data: ${issue.date}. ` : ""}
+                {issue.hours ? `Horas: ${issue.hours}. ` : ""}
+                {issue.suggestion}
+              </p>
+            </div>
+          ))}
+          {visibleIssues.length > 8 && (
+            <p className="text-xs text-muted-foreground">Mostrando as 8 primeiras inconsistências do filtro atual.</p>
+          )}
+          {visibleIssues.length === 0 && (
+            <p className="rounded-md border border-border bg-card p-3 text-xs text-muted-foreground">
+              Nenhuma inconsistência encontrada para este filtro.
+            </p>
+          )}
+        </div>
+      </div>
+    </details>
   );
 }

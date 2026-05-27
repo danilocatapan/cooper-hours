@@ -23,7 +23,8 @@ Design system mínimo para manter a interface operacional consistente sem criar 
 
 ## Regras de Uso
 
-- Prefira status semânticos (`complete`, `pending`, `over`, `missing`, `optional`, `invalid`) em vez de cores diretas.
+- Prefira status semânticos (`complete`, `underTarget`, `overTarget`, `missing`, `optional`, `holiday`, `invalid`) em vez de cores diretas.
+- `pending` e `over` existem apenas como aliases de compatibilidade; componentes novos devem usar `underTarget` e `overTarget`.
 - Evite hexadecimais dentro de telas e componentes de produto; adicione tokens em `index.css` quando necessário.
 - Mantenha regras de negócio em `features/timesheet` e use os componentes de design system apenas para apresentação.
 - Preserve textos e contratos testados pelos fluxos E2E antes de ajustar visual.

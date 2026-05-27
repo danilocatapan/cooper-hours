@@ -41,6 +41,10 @@ export function ConferencePanel({
   onSelectDate,
   onDownloadReportCsv,
 }: ConferencePanelProps) {
+  const calendarWeeks = Array.from({ length: Math.ceil(calendarCells.length / 7) }, (_, index) =>
+    calendarCells.slice(index * 7, index * 7 + 7)
+  );
+
   const focusCalendarDate = (date: string) => {
     requestAnimationFrame(() => {
       document.querySelector<HTMLButtonElement>(`[data-calendar-date="${date}"]`)?.focus();
@@ -76,8 +80,8 @@ export function ConferencePanel({
       >
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <MetricCard label="8h completas" value={reportStats.completeDays} status="complete" />
-          <MetricCard label="Dias pendentes" value={reportStats.pendingDays} status="pending" />
-          <MetricCard label="Acima da meta" value={reportStats.overDays} status="over" />
+          <MetricCard label="Dias pendentes" value={reportStats.pendingDays} status="underTarget" />
+          <MetricCard label="Acima da meta" value={reportStats.overDays} status="overTarget" />
           <MetricCard
             label="Lançado / esperado"
             value={`${report.overallTotalHours.toFixed(1)}h / ${reportStats.expectedTotalHours.toFixed(1)}h`}
@@ -132,76 +136,87 @@ export function ConferencePanel({
         <div className="space-y-4">
           <div role="grid" aria-label="Calendário do mês importado" aria-describedby="calendar-help">
             <p id="calendar-help" className="sr-only">
-              Use as setas do teclado para navegar entre os dias. A seleção atual controla o detalhe diário abaixo.
+              Use as setas do teclado para navegar entre os dias. Apenas o dia selecionado fica na ordem de tabulação. A seleção atual controla o detalhe diário abaixo.
             </p>
             <div role="row" className="grid grid-cols-7 gap-2 text-center text-xs font-medium text-muted-foreground">
               {["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"].map((weekday) => (
                 <span key={weekday} role="columnheader">{weekday}</span>
               ))}
             </div>
-            <div role="rowgroup" className="mt-2 grid grid-cols-7 gap-2">
-              {calendarCells.map((date, idx) => {
-                if (!date) return <div key={`empty-${idx}`} role="presentation" className="h-20" />;
+            <div role="rowgroup" className="mt-2 space-y-2">
+              {calendarWeeks.map((week, weekIndex) => (
+                <div key={`week-${weekIndex}`} role="row" className="grid grid-cols-7 gap-2">
+                  {week.map((date, idx) => {
+                    if (!date) return <div key={`empty-${weekIndex}-${idx}`} role="gridcell" aria-hidden="true" className="h-20" />;
 
-                const summary = summaryByDate.get(date);
-                const dayNumber = Number(date.slice(-2));
-                const weekend = !isBusinessDay(date);
-                const isSelected = selectedSummary?.date === date;
+                    const summary = summaryByDate.get(date);
+                    const dayNumber = Number(date.slice(-2));
+                    const weekend = !isBusinessDay(date);
+                    const isSelected = selectedSummary?.date === date;
 
-                if (!summary) {
-                  return (
-                    <div key={date} role="gridcell" aria-label={`${dayNumber} sem registro`} className="h-20 overflow-hidden rounded-lg border border-border/60 bg-surface-subtle p-2 text-left opacity-60">
-                      <p className="text-sm font-semibold text-muted-foreground">{dayNumber}</p>
-                      {weekend && <p className="mt-1 text-[11px] text-muted-foreground">opcional</p>}
-                    </div>
-                  );
-                }
+                    if (!summary) {
+                      return (
+                        <div key={date} role="gridcell" aria-label={`${dayNumber} sem registro`} className="h-20 overflow-hidden rounded-lg border border-border/60 bg-surface-subtle p-2 text-left">
+                          <p className="text-sm font-semibold text-muted-foreground">{dayNumber}</p>
+                          {weekend && <p className="mt-1 text-[11px] text-muted-foreground">opcional</p>}
+                        </div>
+                      );
+                    }
 
-                const dailyStatus = getDailyStatus(summary.totalHours);
-                const visualStatus: TimesheetStatus = summary.isHoliday ? "holiday" : summary.isMissing ? "missing" : !summary.isBusinessDay ? "optional" : dailyStatus;
-                const Icon = statusMap[visualStatus].Icon;
-                const holidayTooltip = summary.isHoliday ? summary.holidayName ?? "Feriado nacional" : null;
+                    const dailyStatus = getDailyStatus(summary.totalHours);
+                    const visualStatus: TimesheetStatus = summary.isHoliday ? "holiday" : summary.isMissing ? "missing" : !summary.isBusinessDay ? "optional" : dailyStatus;
+                    const Icon = statusMap[visualStatus].Icon;
+                    const holidayTooltip = summary.isHoliday ? summary.holidayName ?? "Feriado nacional" : null;
 
-                const dayButton = (
-                  <button
-                    key={date}
-                    type="button"
-                    data-calendar-date={date}
-                    onClick={() => onSelectDate(date)}
-                    onKeyDown={(event) => handleCalendarKeyDown(event, date)}
-                    aria-label={`${formatLocalDate(date)} ${summary.totalHours.toFixed(1)}h ${summary.isHoliday ? `feriado nacional ${summary.holidayName ?? ""}` : summary.isMissing ? "ausente" : summary.isBusinessDay ? "dia útil" : "hora extra"}`}
-                    aria-controls="daily-detail"
-                    className={cn(
-                      "h-20 overflow-hidden rounded-lg border p-2 text-left transition-colors focus-visible:ring-[3px] focus-visible:ring-selection/40",
-                      statusMap[visualStatus].panelClassName,
-                      isSelected && "relative z-10 border-selection ring-2 ring-selection/70",
-                      !isSelected && "hover:bg-surface-raised"
-                    )}
-                    aria-pressed={isSelected}
-                    aria-selected={isSelected}
-                  >
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="text-sm font-semibold text-foreground">{dayNumber}</span>
-                      <Icon className={cn("h-5 w-5", statusMap[visualStatus].iconClassName)} />
-                    </div>
-                    <p className="mt-1 text-xs text-muted-foreground">{summary.totalHours.toFixed(1)}h</p>
-                    <StatusBadge status={visualStatus}>
-                      {summary.isHoliday ? "feriado" : summary.isMissing ? "ausente" : summary.isBusinessDay ? "dia útil" : "extra"}
-                    </StatusBadge>
-                  </button>
-                );
+                    const dayButton = (
+                      <button
+                        type="button"
+                        data-calendar-date={date}
+                        onClick={() => onSelectDate(date)}
+                        onKeyDown={(event) => handleCalendarKeyDown(event, date)}
+                        tabIndex={isSelected ? 0 : -1}
+                        aria-label={`${formatLocalDate(date)} ${summary.totalHours.toFixed(1)}h ${summary.isHoliday ? `feriado nacional ${summary.holidayName ?? ""}` : summary.isMissing ? "ausente" : summary.isBusinessDay ? "dia útil" : "hora extra"}`}
+                        aria-controls="daily-detail"
+                        aria-pressed={isSelected}
+                        className={cn(
+                          "h-20 overflow-hidden rounded-lg border p-2 text-left transition-colors focus-visible:ring-[3px] focus-visible:ring-selection/40",
+                          statusMap[visualStatus].panelClassName,
+                          isSelected && "relative z-10 border-selection ring-2 ring-selection/70",
+                          !isSelected && "hover:bg-surface-raised"
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-sm font-semibold text-foreground">{dayNumber}</span>
+                          <Icon className={cn("h-5 w-5", statusMap[visualStatus].iconClassName)} />
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">{summary.totalHours.toFixed(1)}h</p>
+                        <StatusBadge status={visualStatus}>
+                          {summary.isHoliday ? "feriado" : summary.isMissing ? "ausente" : summary.isBusinessDay ? "dia útil" : "extra"}
+                        </StatusBadge>
+                      </button>
+                    );
 
-                if (!holidayTooltip) return dayButton;
+                    if (!holidayTooltip) {
+                      return (
+                        <div key={date} role="gridcell" aria-selected={isSelected}>
+                          {dayButton}
+                        </div>
+                      );
+                    }
 
-                return (
-                  <Tooltip key={date}>
-                    <TooltipTrigger asChild>{dayButton}</TooltipTrigger>
-                    <TooltipContent side="top" sideOffset={8} className="max-w-56 text-center">
-                      {holidayTooltip}
-                    </TooltipContent>
-                  </Tooltip>
-                );
-              })}
+                    return (
+                      <div key={date} role="gridcell" aria-selected={isSelected}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>{dayButton}</TooltipTrigger>
+                          <TooltipContent side="top" sideOffset={8} className="max-w-56 text-center">
+                            {holidayTooltip}
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
             </div>
           </div>
 
@@ -268,7 +283,7 @@ function DailyDetail({ summary }: { summary: DailySummary }) {
                 {activity.cardId && <p className="mt-1 text-xs text-muted-foreground">Cartão {activity.cardId}</p>}
               </div>
               <div className="flex-shrink-0">
-                <span className="inline-flex items-center rounded-full bg-success/20 px-2.5 py-0.5 text-sm font-medium text-success">
+                <span className="inline-flex items-center rounded-full border border-success/30 bg-success/10 px-2.5 py-0.5 text-sm font-medium text-foreground">
                   {activity.hours.toFixed(1)}h
                 </span>
               </div>
