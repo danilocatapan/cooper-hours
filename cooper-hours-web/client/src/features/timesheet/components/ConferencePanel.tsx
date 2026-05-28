@@ -134,20 +134,21 @@ export function ConferencePanel({
 
       <SectionCard title="Conferência diária" description="Selecione qualquer dia para revisar total e atividades.">
         <div className="space-y-4">
-          <div role="grid" aria-label="Calendário do mês importado" aria-describedby="calendar-help">
-            <p id="calendar-help" className="sr-only">
-              Use as setas do teclado para navegar entre os dias. Apenas o dia selecionado fica na ordem de tabulação. A seleção atual controla o detalhe diário abaixo.
-            </p>
-            <div role="row" className="grid grid-cols-7 gap-2 text-center text-xs font-medium text-muted-foreground">
-              {["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"].map((weekday) => (
-                <span key={weekday} role="columnheader">{weekday}</span>
-              ))}
-            </div>
-            <div role="rowgroup" className="mt-2 space-y-2">
-              {calendarWeeks.map((week, weekIndex) => (
-                <div key={`week-${weekIndex}`} role="row" className="grid grid-cols-7 gap-2">
-                  {week.map((date, idx) => {
-                    if (!date) return <div key={`empty-${weekIndex}-${idx}`} role="gridcell" aria-hidden="true" className="h-20" />;
+          <div className="overflow-x-auto pb-1">
+            <div role="grid" aria-label="Calendário do mês importado" aria-describedby="calendar-help" className="min-w-[42rem] sm:min-w-0">
+              <p id="calendar-help" className="sr-only">
+                Use as setas do teclado para navegar entre os dias. Apenas o dia selecionado fica na ordem de tabulação. A seleção atual controla o detalhe diário abaixo.
+              </p>
+              <div role="row" className="grid grid-cols-7 gap-2 text-center text-xs font-medium text-muted-foreground lg:gap-3">
+                {["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"].map((weekday) => (
+                  <span key={weekday} role="columnheader">{weekday}</span>
+                ))}
+              </div>
+              <div role="rowgroup" className="mt-2 space-y-2">
+                {calendarWeeks.map((week, weekIndex) => (
+                  <div key={`week-${weekIndex}`} role="row" className="grid grid-cols-7 gap-2 lg:gap-3">
+                    {week.map((date, idx) => {
+                      if (!date) return <div key={`empty-${weekIndex}-${idx}`} role="gridcell" aria-hidden="true" className="aspect-square min-h-24" />;
 
                     const summary = summaryByDate.get(date);
                     const dayNumber = Number(date.slice(-2));
@@ -156,7 +157,7 @@ export function ConferencePanel({
 
                     if (!summary) {
                       return (
-                        <div key={date} role="gridcell" aria-label={`${dayNumber} sem registro`} className="h-20 overflow-hidden rounded-lg border border-border/60 bg-surface-subtle p-2 text-left">
+                        <div key={date} role="gridcell" aria-label={`${dayNumber} sem registro`} className="aspect-square min-h-24 overflow-hidden rounded-lg border border-border/60 bg-surface-subtle p-2 text-left">
                           <p className="text-sm font-semibold text-muted-foreground">{dayNumber}</p>
                           {weekend && <p className="mt-1 text-[11px] text-muted-foreground">opcional</p>}
                         </div>
@@ -179,7 +180,7 @@ export function ConferencePanel({
                         aria-controls="daily-detail"
                         aria-pressed={isSelected}
                         className={cn(
-                          "h-20 overflow-hidden rounded-lg border p-2 text-left transition-colors focus-visible:ring-[3px] focus-visible:ring-selection/40",
+                          "aspect-square min-h-24 w-full overflow-hidden rounded-lg border p-2 text-left transition-colors focus-visible:ring-[3px] focus-visible:ring-selection/40",
                           statusMap[visualStatus].panelClassName,
                           isSelected && "relative z-10 border-selection ring-2 ring-selection/70",
                           !isSelected && "hover:bg-surface-raised"
@@ -214,9 +215,10 @@ export function ConferencePanel({
                         </Tooltip>
                       </div>
                     );
-                  })}
-                </div>
-              ))}
+                    })}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 

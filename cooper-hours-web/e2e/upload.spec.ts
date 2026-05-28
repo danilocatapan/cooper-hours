@@ -368,6 +368,54 @@ test('partially invalid CSV shows ignored-line feedback', async ({ page }) => {
   await expect(page.getByText('1/20 dias úteis fechados com 8h.')).toBeVisible();
 });
 
+test('report layout keeps issue actions contained and calendar days roomy', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+
+  const csv = buildCsv([
+    row('2026-04-01', '8.000', 'Dia completo'),
+    'Usuario Teste\t102\tTarefa sem data\t"tag"\tdata-invalida\t2.000',
+  ]);
+
+  await page.locator('input[type="file"]').setInputFiles({
+    name: 'layout-invalid-line.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from(csv, 'utf8'),
+  });
+
+  const issuesPanel = page.locator('details').filter({ hasText: /Inconsistências do CSV/i });
+  await expect(issuesPanel).toBeVisible();
+
+  const downloadIssuesButton = page.getByRole('button', { name: /Baixar inconsistências/i });
+  await expect(downloadIssuesButton).toBeVisible();
+
+  const issuesBox = await issuesPanel.boundingBox();
+  const buttonBox = await downloadIssuesButton.boundingBox();
+  expect(issuesBox).not.toBeNull();
+  expect(buttonBox).not.toBeNull();
+  expect(buttonBox!.x).toBeGreaterThanOrEqual(issuesBox!.x);
+  expect(buttonBox!.x + buttonBox!.width).toBeLessThanOrEqual(issuesBox!.x + issuesBox!.width + 1);
+
+  const dayButton = page.getByRole('button', { name: /01\/04\/2026/i });
+  await expect(dayButton).toBeVisible();
+  const dayBox = await dayButton.boundingBox();
+  expect(dayBox).not.toBeNull();
+  expect(dayBox!.width).toBeGreaterThanOrEqual(96);
+  expect(dayBox!.height).toBeGreaterThanOrEqual(96);
+  expect(Math.abs(dayBox!.width - dayBox!.height)).toBeLessThanOrEqual(2);
+
+  await page.getByRole('tab', { name: /Criar Tarefas/i }).click();
+  await expect(page.getByTestId('tasks-json')).toBeVisible();
+
+  await page.getByRole('tab', { name: /Registrar Tempo/i }).click();
+  await expect(page.getByTestId('time-entries-json')).toBeVisible();
+
+  await page.getByRole('tab', { name: /Conferência/i }).click();
+  await expect(page.getByText('Conferência diária')).toBeVisible();
+
+  const hasHorizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
+  expect(hasHorizontalOverflow).toBe(false);
+});
+
 test('drag and drop uploads a CSV', async ({ page }) => {
   const filePath = path.join(testDir, 'fixtures', 'sample.csv');
   await page.getByTestId('file-dropzone').dispatchEvent('drop', {

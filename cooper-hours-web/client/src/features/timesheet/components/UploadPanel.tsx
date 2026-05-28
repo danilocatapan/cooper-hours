@@ -74,7 +74,7 @@ export function UploadPanel({
 
   return (
     <SectionCard
-      className="sticky top-8"
+      className="xl:sticky xl:top-8"
       title="Validar lançamento diário de 8h"
       description="Envie o CSV do BusinessMap para conferir dias completos, pendentes e acima da meta."
     >
@@ -307,23 +307,23 @@ function CsvIssuesPanel({
         Inconsistências do CSV ({report.ignoredLineIssues.length})
       </summary>
       <div className="mt-3 space-y-3">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 flex-col gap-2">
           <label className="text-xs font-medium text-foreground" htmlFor="csv-issue-filter">
             Filtrar inconsistências
           </label>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="grid min-w-0 gap-2">
             <select
               id="csv-issue-filter"
               value={issueFilter}
               onChange={(event) => setIssueFilter(event.target.value as CsvIssueType | "all")}
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45"
+              className="h-9 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45"
             >
               <option value="all">{issueTypeLabels.all}</option>
               {issueTypes.map((type) => (
                 <option key={type} value={type}>{issueTypeLabels[type]}</option>
               ))}
             </select>
-            <Button type="button" variant="outline" size="sm" onClick={onDownloadCsvIssues}>
+            <Button type="button" variant="outline" size="sm" className="min-h-9 w-full min-w-0 whitespace-normal px-3 text-center leading-tight" onClick={onDownloadCsvIssues}>
               <Download className="h-4 w-4" />
               Baixar inconsistências
             </Button>

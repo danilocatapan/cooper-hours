@@ -299,8 +299,8 @@ export default function Home() {
       <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {liveMessage}
       </div>
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-1">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[22rem_minmax(0,1fr)]">
+        <div className="min-w-0">
           <UploadPanel
             isLoading={isLoading}
             isDragging={isDragging}
@@ -318,7 +318,7 @@ export default function Home() {
           />
         </div>
 
-        <div className="lg:col-span-2">
+        <div className="min-w-0">
           {report && reportStats ? (
             <div className="space-y-6">
               <WorkflowStepper
