@@ -140,19 +140,19 @@ export function UploadPanel({
             disabled={isLoading || !privacyAcknowledged}
             onClick={() => inputRef.current?.click()}
             className={cn(
-              "mx-auto flex h-auto max-w-xs flex-col items-center rounded-lg px-4 py-3 outline-none focus-visible:ring-[3px] focus-visible:ring-selection/50",
+              "mx-auto inline-flex h-auto w-fit flex-col items-center rounded-lg px-4 py-3 outline-none focus-visible:ring-[3px] focus-visible:ring-selection/50",
               privacyAcknowledged && !isLoading ? "cursor-pointer" : "cursor-not-allowed"
             )}
           >
-            <Upload className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
-            <span className="text-sm font-medium text-foreground">Selecionar CSV</span>
-            <span id="file-upload-help" className="mt-1 text-xs text-muted-foreground">
+            <Upload className="mb-2 h-8 w-8 text-muted-foreground" />
+            <span className="text-sm font-medium text-foreground whitespace-normal">Selecionar CSV</span>
+            <span id="file-upload-help" className="mt-1 text-xs text-muted-foreground whitespace-normal break-words">
               {privacyAcknowledged ? "Use Enter, Espaço ou arraste um arquivo CSV aqui" : "Confirme a ciência sobre privacidade antes de importar"}
             </span>
           </Button>
           {selectedFileName && (
-            <p className="mt-3 text-xs text-muted-foreground">
-              Último arquivo selecionado: <span className="font-medium text-foreground">{selectedFileName}</span>
+            <p className="mt-3 max-w-full text-xs text-muted-foreground break-words">
+              Último arquivo selecionado: <span className="font-medium text-foreground break-words">{selectedFileName}</span>
             </p>
           )}
           <p className="sr-only" role="status" aria-live="polite">
@@ -226,7 +226,7 @@ export function UploadPanel({
               </span>
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-h-[calc(100vh-2rem)] overflow-y-auto border-border bg-card p-0 sm:max-w-3xl">
+          <DialogContent className="max-h-[calc(100vh-2rem)] overflow-y-auto overflow-x-hidden border-border bg-card p-0 sm:max-w-4xl">
             <DialogHeader className="border-b border-border px-5 py-4 pr-12 text-left sm:px-6 sm:pr-14">
               <DialogTitle>Formato do arquivo CSV</DialogTitle>
               <DialogDescription>
@@ -239,12 +239,12 @@ export function UploadPanel({
                 <p id="required-csv-fields" className="mb-3 text-sm font-semibold text-foreground">
                   Campos obrigatórios:
                 </p>
-                <div className="grid gap-3 md:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
                   {requiredCsvFields.map((field) => (
-                    <div key={field.name} className="rounded-lg border border-border bg-surface-subtle p-3">
+                    <div key={field.name} className="min-w-0 rounded-lg border border-border bg-surface-subtle p-3">
                       <p className="text-sm font-semibold text-foreground">{field.name}</p>
                       <p className="mt-2 text-xs leading-5 text-muted-foreground">{field.description}</p>
-                      <p className="mt-3 rounded-md bg-background/70 px-2 py-1 font-mono text-[11px] text-foreground">
+                      <p className="mt-3 rounded-md bg-background/70 px-2 py-1 font-mono text-[11px] text-foreground break-words whitespace-pre-wrap">
                         {field.example}
                       </p>
                     </div>
@@ -263,7 +263,7 @@ export function UploadPanel({
                   data-testid="csv-format-example"
                   className="max-h-64 overflow-auto rounded-lg border border-surface-border bg-code p-4 text-xs leading-6 text-foreground shadow-inner"
                 >
-                  <code className="block min-w-max whitespace-pre">{csvExample}</code>
+                  <code className="block min-w-0 whitespace-pre-wrap break-words">{csvExample}</code>
                 </pre>
                 <p className="mt-3 rounded-lg border border-selection/30 bg-selection/10 p-3 text-xs leading-5 text-foreground">
                   O arquivo pode ser separado por vírgula, ponto-e-vírgula ou tabulação.

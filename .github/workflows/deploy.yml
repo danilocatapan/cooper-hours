@@ -24,6 +24,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -45,6 +47,21 @@ jobs:
         working-directory: cooper-hours-web
         run: node test_comprehensive.mjs
 
+      - name: Determine next patch version
+        id: version
+        run: |
+          git fetch --tags
+          latest=$(git tag --list 'v1.0.*' | sort -V | tail -n 1)
+          if [ -z "$latest" ]; then
+            version="v1.0.0"
+          else
+            current=${latest#v1.0.}
+            next=$((current + 1))
+            version="v1.0.$next"
+          fi
+          echo "Calculated version: $version"
+          echo "VERSION=$version" >> "$GITHUB_OUTPUT"
+
       - name: Install Playwright browser
         working-directory: cooper-hours-web
         run: pnpm exec playwright install --with-deps chromium
@@ -53,8 +70,9 @@ jobs:
         working-directory: cooper-hours-web
         env:
           E2E_BASE_URL: http://127.0.0.1:3000/cooper-hours/
+          VITE_APP_VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
-          pnpm run dev -- --host 127.0.0.1 > /tmp/cooper-hours-vite.log 2>&1 &
+          VITE_APP_VERSION=${{ steps.version.outputs.VERSION }} pnpm run dev -- --host 127.0.0.1 > /tmp/cooper-hours-vite.log 2>&1 &
           for attempt in {1..45}; do
             if curl -fsS "$E2E_BASE_URL" >/dev/null; then
               pnpm run test:e2e
@@ -68,6 +86,8 @@ jobs:
 
       - name: Build project
         working-directory: cooper-hours-web
+        env:
+          VITE_APP_VERSION: ${{ steps.version.outputs.VERSION }}
         run: pnpm run build
 
       - name: Add SPA fallback

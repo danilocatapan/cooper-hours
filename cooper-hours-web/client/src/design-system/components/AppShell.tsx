@@ -34,9 +34,22 @@ export function AppShell({ logoSrc, children }: AppShellProps) {
       <main id="main-content" className="container py-8">{children}</main>
 
       <footer className="mt-12 border-t border-border bg-card">
-        <div className="container py-6 text-center text-sm text-muted-foreground">
-          <p>Validação diária de 8h BusinessMap - Coopersystem v1.0</p>
-          <p className="mt-1">Acessibilidade-alvo: WCAG 2.2 AA, com processamento local dos dados.</p>
+        <div className="container py-6 text-center text-sm text-muted-foreground space-y-2">
+          <p>
+            Validação diária de 8h BusinessMap - Coopersystem
+            <span className="font-semibold"> v{import.meta.env.VITE_APP_VERSION ?? "1.0.0"}</span>
+          </p>
+          <p className="mx-auto max-w-xl">
+            Acessibilidade-alvo: WCAG 2.2 AA, com processamento local dos dados.
+          </p>
+          <p>
+            <a
+              href={`${import.meta.env.BASE_URL || "/"}features`}
+              className="text-selection underline-offset-4 hover:underline"
+            >
+              Sobre
+            </a>
+          </p>
         </div>
       </footer>
     </div>

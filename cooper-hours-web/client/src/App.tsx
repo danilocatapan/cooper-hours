@@ -4,10 +4,12 @@ import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import Features from "./pages/Features";
 import Home from "./pages/Home";
 
 const appBasePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 const appHomePath = appBasePath ? `${appBasePath}/` : "/";
+const appFeaturesPath = appBasePath ? `${appBasePath}/features` : "/features";
 const appNotFoundPath = appBasePath ? `${appBasePath}/404` : "/404";
 
 function Router() {
@@ -16,6 +18,8 @@ function Router() {
       {appBasePath ? <Route path={appHomePath} component={Home} /> : null}
       {appBasePath ? <Route path={appBasePath} component={Home} /> : null}
       <Route path={"/"} component={Home} />
+      {appBasePath ? <Route path={appFeaturesPath} component={Features} /> : null}
+      <Route path={"/features"} component={Features} />
       {appBasePath ? <Route path={appNotFoundPath} component={NotFound} /> : null}
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}

@@ -79,6 +79,62 @@ test('upload control is keyboard accessible and exposes workflow progress', asyn
   await expect(page.getByText('4. Copiar lançamentos')).toBeVisible();
 });
 
+test('conference day cards stay compact and consistent on desktop', async ({ page }) => {
+  const filePath = path.join(testDir, 'fixtures', 'sample.csv');
+  await page.locator('input[type="file"]').setInputFiles(filePath);
+  await expect(page.getByText('Conferência diária')).toBeVisible({ timeout: 5000 });
+
+  const firstDayButton = page.locator('[data-calendar-date]').first();
+  await expect(firstDayButton).toBeVisible();
+  const box = await firstDayButton.boundingBox();
+
+  expect(box).not.toBeNull();
+  expect(box?.height).toBeGreaterThan(60);
+  expect(box?.height).toBeLessThan(140);
+  expect(box?.width).toBeGreaterThan(box?.height ?? 0);
+});
+
+test('upload button remains contained inside dropzone and handles long file names', async ({ page }) => {
+  const dropzone = page.getByTestId('file-dropzone');
+  const uploadButton = page.getByRole('button', { name: /Selecionar CSV/i });
+
+  const dropboxBox = await dropzone.boundingBox();
+  const buttonBox = await uploadButton.boundingBox();
+
+  expect(dropboxBox).not.toBeNull();
+  expect(buttonBox).not.toBeNull();
+  expect(buttonBox?.width).toBeLessThan((dropboxBox?.width ?? 0) * 0.95);
+
+  await uploadButton.focus();
+  await expect(uploadButton).toBeFocused();
+});
+
+test('CSV format modal does not overflow horizontally on desktop and mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.getByRole('button', { name: /Formato do arquivo/i }).click();
+  const dialog = page.getByRole('dialog', { name: /Formato do arquivo CSV/i });
+  await expect(dialog).toBeVisible();
+
+  const desktopOverflow = await dialog.evaluate((dialogElement) => dialogElement.scrollWidth > dialogElement.clientWidth);
+  expect(desktopOverflow).toBeFalsy();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: /Formato do arquivo/i }).click();
+  const mobileDialog = page.getByRole('dialog', { name: /Formato do arquivo CSV/i });
+  const mobileOverflow = await mobileDialog.evaluate((dialogElement) => dialogElement.scrollWidth > dialogElement.clientWidth);
+  expect(mobileOverflow).toBeFalsy();
+});
+
+test('footer Sobre link navigates to features page and shows current version', async ({ page }) => {
+  const aboutLink = page.getByRole('link', { name: /Sobre/i });
+  await expect(aboutLink).toBeVisible();
+  await aboutLink.click();
+  await expect(page).toHaveURL(/features/);
+  await expect(page.getByRole('heading', { name: /Sobre \/ Features/i })).toBeVisible();
+  await expect(page.getByText(/Versão 1\.0\.0/i)).toBeVisible();
+});
+
 test('theme switcher supports dark, light, and high contrast modes', async ({ page }) => {
   await page.getByRole('button', { name: /Usar tema Claro/i }).click();
   await expect(page.locator('html')).toHaveClass(/light/);
