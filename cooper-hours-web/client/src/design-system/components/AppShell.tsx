@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { appVersionLabel } from "@/lib/appVersion";
 import { textClass } from "../tokens";
 import { ThemeSwitcher } from "./ThemeSwitcher";
 
@@ -37,7 +38,7 @@ export function AppShell({ logoSrc, children }: AppShellProps) {
         <div className="container py-6 text-center text-sm text-muted-foreground space-y-2">
           <p>
             Validação diária de 8h BusinessMap - Coopersystem
-            <span className="font-semibold"> v{import.meta.env.VITE_APP_VERSION ?? "1.0.0"}</span>
+            <span className="font-semibold"> {appVersionLabel}</span>
           </p>
           <p className="mx-auto max-w-xl">
             Acessibilidade-alvo: WCAG 2.2 AA, com processamento local dos dados.

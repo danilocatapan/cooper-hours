@@ -117,7 +117,7 @@ export function UploadPanel({
           onDrop={onDrop}
           aria-disabled={!privacyAcknowledged || isLoading}
           className={cn(
-            "rounded-lg border-2 border-dashed p-6 text-center transition-colors",
+            "min-w-0 rounded-lg border-2 border-dashed p-5 text-center transition-colors sm:p-6",
             isDragging ? "border-primary bg-primary/10" : "border-border hover:border-primary",
             (!privacyAcknowledged || isLoading) && "opacity-70"
           )}
@@ -140,19 +140,19 @@ export function UploadPanel({
             disabled={isLoading || !privacyAcknowledged}
             onClick={() => inputRef.current?.click()}
             className={cn(
-              "mx-auto inline-flex h-auto w-fit flex-col items-center rounded-lg px-4 py-3 outline-none focus-visible:ring-[3px] focus-visible:ring-selection/50",
+              "mx-auto flex h-auto w-full max-w-full min-w-0 shrink flex-col items-center whitespace-normal rounded-lg px-3 py-3 outline-none focus-visible:ring-[3px] focus-visible:ring-selection/50 sm:px-4",
               privacyAcknowledged && !isLoading ? "cursor-pointer" : "cursor-not-allowed"
             )}
           >
             <Upload className="mb-2 h-8 w-8 text-muted-foreground" />
-            <span className="text-sm font-medium text-foreground whitespace-normal">Selecionar CSV</span>
-            <span id="file-upload-help" className="mt-1 text-xs text-muted-foreground whitespace-normal break-words">
+            <span className="whitespace-normal text-sm font-medium text-foreground">Selecionar CSV</span>
+            <span id="file-upload-help" className="mt-1 max-w-full whitespace-normal break-words text-xs text-muted-foreground">
               {privacyAcknowledged ? "Use Enter, Espaço ou arraste um arquivo CSV aqui" : "Confirme a ciência sobre privacidade antes de importar"}
             </span>
           </Button>
           {selectedFileName && (
-            <p className="mt-3 max-w-full text-xs text-muted-foreground break-words">
-              Último arquivo selecionado: <span className="font-medium text-foreground break-words">{selectedFileName}</span>
+            <p className="mt-3 max-w-full break-words text-xs text-muted-foreground">
+              Último arquivo selecionado: <span className="break-all font-medium text-foreground">{selectedFileName}</span>
             </p>
           )}
           <p className="sr-only" role="status" aria-live="polite">
@@ -239,12 +239,12 @@ export function UploadPanel({
                 <p id="required-csv-fields" className="mb-3 text-sm font-semibold text-foreground">
                   Campos obrigatórios:
                 </p>
-                <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-[repeat(2,minmax(0,1fr))] md:grid-cols-[repeat(3,minmax(0,1fr))]">
                   {requiredCsvFields.map((field) => (
                     <div key={field.name} className="min-w-0 rounded-lg border border-border bg-surface-subtle p-3">
                       <p className="text-sm font-semibold text-foreground">{field.name}</p>
                       <p className="mt-2 text-xs leading-5 text-muted-foreground">{field.description}</p>
-                      <p className="mt-3 rounded-md bg-background/70 px-2 py-1 font-mono text-[11px] text-foreground break-words whitespace-pre-wrap">
+                      <p className="mt-3 whitespace-pre-wrap break-words rounded-md bg-background/70 px-2 py-1 font-mono text-[11px] text-foreground">
                         {field.example}
                       </p>
                     </div>

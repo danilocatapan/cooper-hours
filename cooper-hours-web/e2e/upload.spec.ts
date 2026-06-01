@@ -89,8 +89,8 @@ test('conference day cards stay compact and consistent on desktop', async ({ pag
   const box = await firstDayButton.boundingBox();
 
   expect(box).not.toBeNull();
-  expect(box?.height).toBeGreaterThan(60);
-  expect(box?.height).toBeLessThan(140);
+  expect(box?.height).toBeGreaterThanOrEqual(80);
+  expect(box?.height).toBeLessThanOrEqual(100);
   expect(box?.width).toBeGreaterThan(box?.height ?? 0);
 });
 
@@ -103,7 +103,8 @@ test('upload button remains contained inside dropzone and handles long file name
 
   expect(dropboxBox).not.toBeNull();
   expect(buttonBox).not.toBeNull();
-  expect(buttonBox?.width).toBeLessThan((dropboxBox?.width ?? 0) * 0.95);
+  expect(buttonBox!.x).toBeGreaterThanOrEqual(dropboxBox!.x);
+  expect(buttonBox!.x + buttonBox!.width).toBeLessThanOrEqual(dropboxBox!.x + dropboxBox!.width);
 
   await uploadButton.focus();
   await expect(uploadButton).toBeFocused();
@@ -132,7 +133,7 @@ test('footer Sobre link navigates to features page and shows current version', a
   await aboutLink.click();
   await expect(page).toHaveURL(/features/);
   await expect(page.getByRole('heading', { name: /Sobre \/ Features/i })).toBeVisible();
-  await expect(page.getByText(/Versão 1\.0\.0/i)).toBeVisible();
+  await expect(page.getByText(/Versão 1\.0\.\d+/i)).toBeVisible();
 });
 
 test('theme switcher supports dark, light, and high contrast modes', async ({ page }) => {
@@ -456,8 +457,9 @@ test('report layout keeps issue actions contained and calendar days roomy', asyn
   const dayBox = await dayButton.boundingBox();
   expect(dayBox).not.toBeNull();
   expect(dayBox!.width).toBeGreaterThanOrEqual(96);
-  expect(dayBox!.height).toBeGreaterThanOrEqual(96);
-  expect(Math.abs(dayBox!.width - dayBox!.height)).toBeLessThanOrEqual(2);
+  expect(dayBox!.height).toBeGreaterThanOrEqual(80);
+  expect(dayBox!.height).toBeLessThanOrEqual(100);
+  expect(dayBox!.width).toBeGreaterThan(dayBox!.height);
 
   await page.getByRole('tab', { name: /Criar Tarefas/i }).click();
   await expect(page.getByTestId('tasks-json')).toBeVisible();

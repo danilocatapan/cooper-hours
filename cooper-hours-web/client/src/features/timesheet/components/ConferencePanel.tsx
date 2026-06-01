@@ -148,7 +148,7 @@ export function ConferencePanel({
                 {calendarWeeks.map((week, weekIndex) => (
                   <div key={`week-${weekIndex}`} role="row" className="grid grid-cols-7 gap-2 lg:gap-3">
                     {week.map((date, idx) => {
-                      if (!date) return <div key={`empty-${weekIndex}-${idx}`} role="gridcell" aria-hidden="true" className="h-20 sm:h-24 rounded-lg border border-border/60 bg-surface-subtle" />;
+                      if (!date) return <div key={`empty-${weekIndex}-${idx}`} role="gridcell" aria-hidden="true" className="h-20 rounded-lg border border-border/60 bg-surface-subtle sm:h-[5.5rem]" />;
 
                     const summary = summaryByDate.get(date);
                     const dayNumber = Number(date.slice(-2));
@@ -157,7 +157,7 @@ export function ConferencePanel({
 
                     if (!summary) {
                       return (
-                        <div key={date} role="gridcell" aria-label={`${dayNumber} sem registro`} className="h-20 sm:h-24 overflow-hidden rounded-lg border border-border/60 bg-surface-subtle p-2 text-left">
+                        <div key={date} role="gridcell" aria-label={`${dayNumber} sem registro`} className="h-20 overflow-hidden rounded-lg border border-border/60 bg-surface-subtle p-2 text-left sm:h-[5.5rem]">
                           <p className="text-sm font-semibold text-muted-foreground">{dayNumber}</p>
                           {weekend && <p className="mt-1 text-[11px] text-muted-foreground">opcional</p>}
                         </div>
@@ -180,7 +180,7 @@ export function ConferencePanel({
                         aria-controls="daily-detail"
                         aria-pressed={isSelected}
                         className={cn(
-                          "h-20 sm:h-24 w-full overflow-hidden rounded-lg border p-2 text-left transition-colors focus-visible:ring-[3px] focus-visible:ring-selection/40",
+                          "h-20 w-full overflow-hidden rounded-lg border p-2 text-left transition-colors focus-visible:ring-[3px] focus-visible:ring-selection/40 sm:h-[5.5rem]",
                           statusMap[visualStatus].panelClassName,
                           isSelected && "relative z-10 border-selection ring-2 ring-selection/70",
                           !isSelected && "hover:bg-surface-raised"

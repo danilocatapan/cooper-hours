@@ -66,3 +66,9 @@ test("privacy dialog and 404 screen have no automated accessibility violations",
   await expect(page.getByRole("heading", { name: "404" })).toBeVisible();
   await checkA11y(page);
 });
+
+test("features page has no automated accessibility violations", async ({ page }) => {
+  await page.goto(new URL("features", base).toString(), { waitUntil: "networkidle" });
+  await expect(page.getByRole("heading", { name: /Sobre \/ Features/i })).toBeVisible();
+  await checkA11y(page);
+});
