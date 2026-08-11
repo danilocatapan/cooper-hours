@@ -15,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AppShell } from "@/design-system/components/AppShell";
 import { EmptyState } from "@/design-system/components/EmptyState";
 import { WorkflowStepper } from "@/design-system/components/WorkflowStepper";
-import { createAutomationPreview, getRedmineStatus, redmineIntegrationEnabled, submitAutomationPreview } from "@/features/redmine/api";
+import { connectRedmine, createAutomationPreview, redmineIntegrationEnabled, submitAutomationPreview } from "@/features/redmine/api";
 import { buildAutomationRequest } from "@/features/redmine/buildRequest";
 import { AutomationPanel } from "@/features/redmine/components/AutomationPanel";
 import {
@@ -61,6 +61,7 @@ export default function Home() {
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [pendingSensitiveAction, setPendingSensitiveAction] = useState<SensitiveActionKind | null>(null);
   const [redmineStatus, setRedmineStatus] = useState<RedmineConnectionStatus | null>(null);
+  const [redmineApiKey, setRedmineApiKey] = useState("");
   const [automationPreview, setAutomationPreview] = useState<AutomationPreview | null>(null);
   const [automationResult, setAutomationResult] = useState<AutomationSubmissionResult | null>(null);
   const [automationError, setAutomationError] = useState<string | null>(null);
@@ -99,25 +100,6 @@ export default function Home() {
     () => automationRequest ? JSON.stringify(automationRequest) : "",
     [automationRequest],
   );
-
-  useEffect(() => {
-    if (!redmineIntegrationEnabled) return;
-    let active = true;
-    setAutomationStage("status");
-    void getRedmineStatus()
-      .then((status) => {
-        if (active) setRedmineStatus(status);
-      })
-      .catch((statusError) => {
-        if (active) setAutomationError(sanitizeProcessingError(statusError));
-      })
-      .finally(() => {
-        if (active) setAutomationStage("idle");
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
 
   useEffect(() => {
     setAutomationPreview(null);
@@ -258,7 +240,7 @@ export default function Home() {
     setAutomationStage("status");
     setAutomationError(null);
     try {
-      const status = await getRedmineStatus();
+      const status = await connectRedmine(redmineApiKey);
       setRedmineStatus(status);
       setLiveMessage(status.connected ? "Conexão com o Redmine validada." : status.message);
     } catch (statusError) {
@@ -271,12 +253,12 @@ export default function Home() {
   };
 
   const prepareAutomation = async () => {
-    if (!automationRequest) return;
+    if (!automationRequest || !redmineApiKey) return;
     setAutomationStage("preview");
     setAutomationError(null);
     setAutomationResult(null);
     try {
-      const preview = await createAutomationPreview(automationRequest);
+      const preview = await createAutomationPreview(redmineApiKey, automationRequest);
       setAutomationPreview(preview);
       setLiveMessage(`Prévia pronta: ${preview.summary.tasksToCreate} tarefas e ${preview.summary.entriesToCreate} lançamentos novos.`);
     } catch (previewError) {
@@ -289,11 +271,11 @@ export default function Home() {
   };
 
   const submitAutomation = async () => {
-    if (!automationPreview) return;
+    if (!automationPreview || !redmineApiKey) return;
     setAutomationStage("submit");
     setAutomationError(null);
     try {
-      const result = await submitAutomationPreview(automationPreview.previewId);
+      const result = await submitAutomationPreview(redmineApiKey, automationPreview.previewId);
       setAutomationResult(result);
       setLiveMessage(result.message);
     } catch (submitError) {
@@ -310,6 +292,19 @@ export default function Home() {
     setAutomationResult(null);
     setAutomationError(null);
     setLiveMessage("Prévia da automação removida.");
+  };
+
+  const updateRedmineApiKey = (value: string) => {
+    setRedmineApiKey(value);
+    setRedmineStatus(null);
+    setAutomationPreview(null);
+    setAutomationResult(null);
+    setAutomationError(null);
+  };
+
+  const clearRedmineApiKey = () => {
+    updateRedmineApiKey("");
+    setLiveMessage("API key removida da memória desta aba.");
   };
 
   const copyJson = async (jsonText: string, target: Exclude<CopiedTarget, null>) => {
@@ -504,11 +499,14 @@ export default function Home() {
                 {redmineIntegrationEnabled ? (
                   <TabsContent value="automation">
                     <AutomationPanel
+                      apiKey={redmineApiKey}
                       status={redmineStatus}
                       preview={automationPreview}
                       result={automationResult}
                       error={automationError}
                       stage={automationStage}
+                      onApiKeyChange={updateRedmineApiKey}
+                      onClearApiKey={clearRedmineApiKey}
                       onRefreshStatus={() => void refreshRedmineStatus()}
                       onPrepare={() => void prepareAutomation()}
                       onSubmit={() => void submitAutomation()}

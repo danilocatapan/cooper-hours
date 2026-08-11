@@ -76,12 +76,13 @@ test("features page has no automated accessibility violations", async ({ page })
 });
 
 test("Redmine automation panel has no automated accessibility violations", async ({ page }) => {
-  await page.route("**/api/redmine/status", (route) => route.fulfill({
+  await page.route("**/api/redmine/connection", (route) => route.fulfill({
     status: 200,
     contentType: "application/json",
     body: JSON.stringify({
       configured: true,
       connected: true,
+      writeMode: "create-update",
       message: "Conexão segura com o Redmine validada.",
       account: { id: 388, login: "danilo.catapan", name: "Danilo Catapan" },
       project: { id: 333, name: "Maestro Cloud BB Corretora" },
@@ -97,5 +98,8 @@ test("Redmine automation panel has no automated accessibility violations", async
   });
   await page.getByRole("tab", { name: /Automatizar/i }).click();
   await expect(page.getByTestId("redmine-automation-panel")).toBeVisible();
+  await page.getByTestId("redmine-api-key").fill("e2e-safe-redmine-key");
+  await page.getByRole("button", { name: /Testar conexão/i }).click();
+  await expect(page.getByText("Danilo Catapan (danilo.catapan)")).toBeVisible();
   await checkA11y(page);
 });

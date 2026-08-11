@@ -1,4 +1,5 @@
-import { AlertCircle, CheckCircle2, CloudCog, Loader2, RefreshCw, Send, ShieldCheck } from "lucide-react";
+import { useState } from "react";
+import { AlertCircle, CheckCircle2, CloudCog, Eye, EyeOff, ExternalLink, KeyRound, Loader2, RefreshCw, Send, ShieldCheck, Trash2 } from "lucide-react";
 import type { AutomationPreview, AutomationSubmissionResult, RedmineConnectionStatus } from "@shared/redmine";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -14,6 +15,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { MetricCard } from "@/design-system/components/MetricCard";
 import { SectionCard } from "@/design-system/components/SectionCard";
 import { StatusBadge } from "@/design-system/components/StatusBadge";
@@ -21,11 +24,14 @@ import { StatusBadge } from "@/design-system/components/StatusBadge";
 type AutomationStage = "idle" | "status" | "preview" | "submit";
 
 interface AutomationPanelProps {
+  apiKey: string;
   status: RedmineConnectionStatus | null;
   preview: AutomationPreview | null;
   result: AutomationSubmissionResult | null;
   error: string | null;
   stage: AutomationStage;
+  onApiKeyChange: (value: string) => void;
+  onClearApiKey: () => void;
   onRefreshStatus: () => void;
   onPrepare: () => void;
   onSubmit: () => void;
@@ -33,17 +39,21 @@ interface AutomationPanelProps {
 }
 
 export function AutomationPanel({
+  apiKey,
   status,
   preview,
   result,
   error,
   stage,
+  onApiKeyChange,
+  onClearApiKey,
   onRefreshStatus,
   onPrepare,
   onSubmit,
   onReset,
 }: AutomationPanelProps) {
   const busy = stage !== "idle";
+  const [showApiKey, setShowApiKey] = useState(false);
 
   return (
     <div className="space-y-6" data-testid="redmine-automation-panel">
@@ -54,33 +64,77 @@ export function AutomationPanel({
             Automação Redmine
           </span>
         )}
-        description="Revise uma prévia completa antes de criar tarefas e lançar horas no projeto 333."
+        description="Use sua chave pessoal somente nesta aba e revise a prévia antes de criar ou atualizar registros no projeto 333."
         action={(
-          <Button type="button" variant="outline" size="sm" onClick={onRefreshStatus} disabled={busy}>
+          <Button type="button" variant="outline" size="sm" onClick={onRefreshStatus} disabled={busy || !apiKey.trim()}>
             <RefreshCw className={stage === "status" ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
             Testar conexão
           </Button>
         )}
         contentClassName="space-y-5"
       >
+        <div className="rounded-lg border border-surface-border bg-surface-raised p-4">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Label htmlFor="redmine-api-key" className="flex items-center gap-2 font-semibold">
+                  <KeyRound className="h-4 w-4 text-primary" />
+                  API key pessoal do Redmine
+                </Label>
+                <a
+                  href="https://redmine.coopersystem.com.br/my/account"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  Obter em Minha conta <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  id="redmine-api-key"
+                  data-testid="redmine-api-key"
+                  type={showApiKey ? "text" : "password"}
+                  value={apiKey}
+                  onChange={(event) => onApiKeyChange(event.target.value)}
+                  autoComplete="off"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  placeholder="Cole sua chave para testar a conexão"
+                  aria-describedby="redmine-key-help"
+                />
+                <Button type="button" variant="outline" size="icon" onClick={() => setShowApiKey((value) => !value)} aria-label={showApiKey ? "Ocultar API key" : "Mostrar API key"}>
+                  {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+                <Button type="button" variant="outline" size="icon" onClick={onClearApiKey} disabled={!apiKey || busy} aria-label="Limpar API key">
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+              <p id="redmine-key-help" className="text-xs leading-5 text-muted-foreground">
+                A chave fica apenas na memória desta aba, é enviada por HTTPS e desaparece ao recarregar ou fechar a página.
+              </p>
+            </div>
+          </div>
+        </div>
+
         <div className="flex flex-col gap-4 rounded-lg border border-surface-border bg-surface-subtle p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <StatusBadge status={status?.connected ? "complete" : status?.configured ? "invalid" : "neutral"}>
-                {status?.connected ? "Conectado" : status?.configured ? "Falha de conexão" : "Configuração pendente"}
+                {status?.connected ? "Conectado" : status?.configured ? "Falha de conexão" : apiKey ? "Aguardando teste" : "Chave não informada"}
               </StatusBadge>
               {status?.project ? <Badge variant="outline">Projeto {status.project.id}</Badge> : null}
             </div>
             <p className="mt-2 text-sm font-medium text-foreground">
-              {status?.account ? `${status.account.name} (${status.account.login})` : "Backend local e API key"}
+              {status?.account ? `${status.account.name} (${status.account.login})` : "Credencial individual e não persistente"}
             </p>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">
-              {status?.message ?? "Validando se a integração local está disponível..."}
+              {status?.message ?? "Informe a chave e teste a conexão antes de preparar a prévia."}
             </p>
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <ShieldCheck className="h-4 w-4 text-success" />
-            A chave permanece no backend local
+            Sem armazenamento da chave
           </div>
         </div>
 
@@ -96,7 +150,7 @@ export function AutomationPanel({
           <Button
             type="button"
             onClick={onPrepare}
-            disabled={!status?.connected || busy}
+            disabled={!apiKey.trim() || !status?.connected || busy}
             data-testid="prepare-redmine-preview"
           >
             {stage === "preview" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CloudCog className="h-4 w-4" />}
@@ -116,10 +170,12 @@ export function AutomationPanel({
           description={`Válida até ${new Date(preview.expiresAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}. Nenhuma alteração foi feita ainda.`}
           contentClassName="space-y-5"
         >
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
             <MetricCard label="tarefas novas" value={preview.summary.tasksToCreate} status="underTarget" />
+            <MetricCard label="tarefas atualizadas" value={preview.summary.tasksToUpdate} status="underTarget" />
             <MetricCard label="tarefas reutilizadas" value={preview.summary.tasksToReuse} status="complete" />
             <MetricCard label="horas novas" value={preview.summary.entriesToCreate} status="complete" />
+            <MetricCard label="horas atualizadas" value={preview.summary.entriesToUpdate} status="underTarget" />
             <MetricCard label="duplicatas ignoradas" value={preview.summary.duplicateEntries} status="optional" />
           </div>
 
@@ -175,10 +231,11 @@ export function AutomationPanel({
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Criar tarefas e lançar horas?</AlertDialogTitle>
+                  <AlertDialogTitle>Criar e atualizar registros?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Serão criadas {preview.summary.tasksToCreate} tarefa(s) e {preview.summary.entriesToCreate} lançamento(s).
-                    A aplicação verificará duplicidades novamente, mas não excluirá registros já existentes.
+                    Serão criadas {preview.summary.tasksToCreate} tarefa(s) e {preview.summary.entriesToCreate} lançamento(s),
+                    com {preview.summary.tasksToUpdate} tarefa(s) e {preview.summary.entriesToUpdate} lançamento(s) atualizados.
+                    A aplicação revalidará marcadores e nunca excluirá registros.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -209,12 +266,16 @@ export function AutomationPanel({
 function AutomationBadge({ action, issueId }: { action: string; issueId: number | null }) {
   const classes = action === "create"
     ? "border-selection/30 bg-selection/10 text-foreground"
-    : action === "reuse" || action === "duplicate"
+    : action === "update"
+      ? "border-warning/30 bg-warning/10 text-foreground"
+      : action === "reuse" || action === "duplicate"
       ? "border-success/30 bg-success/10 text-foreground"
       : "border-danger/30 bg-danger/10 text-foreground";
   const label = action === "create"
     ? "criar"
-    : action === "reuse"
+    : action === "update"
+      ? `atualizar${issueId ? ` #${issueId}` : ""}`
+      : action === "reuse"
       ? `reutilizar${issueId ? ` #${issueId}` : ""}`
       : action === "duplicate"
         ? "duplicata"
@@ -227,6 +288,7 @@ function AutomationBadge({ action, issueId }: { action: string; issueId: number 
 function SubmissionResult({ result }: { result: AutomationSubmissionResult }) {
   const createdTasks = result.tasks.filter((item) => item.status === "created").length;
   const createdEntries = result.entries.filter((item) => item.status === "created").length;
+  const updated = result.tasks.filter((item) => item.status === "updated").length + result.entries.filter((item) => item.status === "updated").length;
   const failed = result.tasks.some((item) => item.status === "failed") || result.entries.some((item) => item.status === "failed");
   return (
     <SectionCard
@@ -239,9 +301,10 @@ function SubmissionResult({ result }: { result: AutomationSubmissionResult }) {
       description={result.message}
       contentClassName="space-y-4"
     >
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
         <MetricCard label="tarefas criadas" value={createdTasks} status="complete" />
         <MetricCard label="horas lançadas" value={createdEntries} status="complete" />
+        <MetricCard label="itens atualizados" value={updated} status="underTarget" />
         <MetricCard label="itens com falha" value={failed ? 1 : 0} status={failed ? "invalid" : "neutral"} />
       </div>
       <details className="rounded-lg border border-border bg-card">

@@ -12,9 +12,9 @@ Sistema web para processar e validar registros de timesheet exportados do Busine
 
 ## Privacidade e LGPD
 
-O CSV continua sendo lido e processado no navegador. No GitHub Pages, todo o fluxo permanece manual e nenhum dado é enviado automaticamente. Quando a integração local é configurada, somente os dados derivados apresentados na prévia são enviados pelo backend local ao Redmine, e apenas depois de uma confirmação explícita.
+O CSV continua sendo lido e processado no navegador. No GitHub Pages, todo o fluxo permanece manual e nenhum dado é enviado automaticamente. No ambiente privado, somente os dados derivados apresentados na prévia são enviados pelo backend ao Redmine, e apenas depois de uma confirmação explícita.
 
-A chave de API individual fica exclusivamente no processo Node local. Ela não é incluída no React, em variáveis `VITE_*`, em logs, respostas ou armazenamento do navegador.
+A chave individual é digitada em um campo mascarado e permanece somente no estado React da aba. Ela é enviada em cada operação no header `Authorization: RedmineKey ...`, não entra no bundle, banco, logs, cookies, `localStorage` ou `sessionStorage` e desaparece ao limpar ou recarregar a página.
 
 ### Matriz resumida de tratamento
 
@@ -24,8 +24,8 @@ A chave de API individual fica exclusivamente no processo Node local. Ela não �
 | Relatório na tela | Datas, horas, títulos e IDs | Revisão visual pelo usuário | Apenas durante a sessão da página | Nenhum automático |
 | Cópia de JSON | Títulos, datas, horas, issue_id e activity_id | Uso manual em Cecis ou sistema autorizado | Área de transferência do dispositivo | Manual pelo usuário |
 | Download CSV | Resumo de datas, horas e atividades | Arquivamento ou envio manual autorizado | Arquivo baixado no dispositivo | Manual pelo usuário |
-| Prévia da automação local | Títulos, datas, horas, IDs, atividade e versão | Conferir tarefas, duplicatas e conflitos antes da escrita | Até 15 minutos na memória do backend local | Backend local consulta o Redmine |
-| Envio confirmado ao Redmine | Tarefas, horas, atividade e comentário de deduplicação | Criar/reutilizar tarefas e registrar horas | Conforme a política institucional do Redmine | Direto ao Redmine após confirmação |
+| Prévia da automação privada | Títulos, datas, horas, IDs, atividade e versão | Conferir tarefas, atualizações, duplicatas e conflitos antes da escrita | Até 15 minutos no PostgreSQL, sem a chave | Backend consulta o Redmine |
+| Envio confirmado ao Redmine | Tarefas, horas, atividade e marcador técnico | Criar/reutilizar/atualizar tarefas e lançar/atualizar horas | Ledger técnico por 90 dias; conteúdo no Redmine conforme política institucional | Backend envia após confirmação |
 | Tema visual | Preferência de tema | Acessibilidade e conforto visual | localStorage do navegador | Nenhum automático |
 
 ### Textos base
@@ -66,10 +66,10 @@ Antes de uso institucional, revise estes textos com [PLACEHOLDER_RESPONSAVEL_JUR
    - Listagem completa de todas as atividades
    - Design responsivo com identidade visual Coopersystem
 
-5. **Automação local do Redmine**
+5. **Automação privada do Redmine**
    - Consulta conexão, usuário, projeto 333, versões, trackers, status e atividades
-   - Reutiliza tarefas com correspondência exata, cria as inexistentes e bloqueia ambiguidades
-   - Detecta horas já lançadas e impede duplicações ou conflitos
+   - Reutiliza tarefas existentes sem alterá-las; cria e atualiza somente recursos gerenciados e assinados pela aplicação
+   - Detecta horas já lançadas, impede duplicações e bloqueia correspondências ambíguas
    - Exige uma prévia válida e uma confirmação final antes de qualquer escrita
    - Interrompe falhas parciais e permite gerar uma nova prévia segura
 
@@ -136,7 +136,7 @@ Usuário	ID do cartão	Título	Etiquetas	Data	Tempo registrado soma
    - **Detalhes Diários:** Horas por dia com status
    - **Atividades:** Lista completa de tarefas realizadas
 
-O site publicado não contém backend nem chave de API. Para usar a automação do Redmine, execute o projeto localmente.
+O GitHub Pages não contém backend nem chave de API e mantém somente o fluxo manual. A automação é disponibilizada no domínio corporativo protegido pelo Cloudflare Access ou, para desenvolvimento, pelo servidor local.
 
 ### Interpretando o Relatório
 
@@ -175,9 +175,7 @@ O site publicado não contém backend nem chave de API. Para usar a automação 
    Copy-Item .env.example .env.local
    ```
 
-   Edite somente o arquivo `.env.local` e preencha `REDMINE_API_KEY` com a chave individual gerada em **Minha conta → Chave de acesso API** no Redmine. Não compartilhe, não coloque a chave em variáveis `VITE_*` e não faça commit desse arquivo.
-
-   Os demais valores já vêm configurados para `https://redmine.coopersystem.com.br`, projeto `333` e atividade `9` selecionada pela interface. Deixar a chave vazia mantém a automação desativada sem impedir o fluxo manual.
+   Não configure `REDMINE_API_KEY` no arquivo. A chave é informada pelo próprio usuário no painel **Automatizar** e mantida somente na memória da aba. O host `https://redmine.coopersystem.com.br` e o projeto `333` estão fixados no código do backend e não podem ser alterados pelo navegador.
 
 4. **Iniciar frontend e backend local:**
    ```bash
@@ -191,12 +189,14 @@ O site publicado não contém backend nem chave de API. Para usar a automação 
 
 ### Segurança e recuperação
 
-- O backend aceita conexões apenas de `127.0.0.1`, limita o corpo das requisições, valida todos os contratos e exige um header próprio nas rotas de mutação.
-- A prévia expira em 15 minutos e o envio recebe somente seu identificador; o conteúdo não pode ser alterado depois da confirmação.
-- Cada lançamento recebe um identificador determinístico curto no comentário. Duplicatas são ignoradas e conflitos bloqueiam a escrita.
-- Tarefas e horas são gravadas sequencialmente. Depois de timeout, o backend consulta o Redmine antes de repetir; respostas ambíguas interrompem o lote.
-- Não existe opção de forçar duplicação, editar ou excluir registros nesta versão. Gere uma nova prévia depois de corrigir qualquer bloqueio.
+- Em desenvolvimento, o backend escuta apenas `127.0.0.1`. Em produção, o Render é publicado exclusivamente atrás do Cloudflare Access e valida assinatura, issuer e audience do JWT.
+- A chave Redmine é exigida novamente em conexão, prévia e envio; a prévia expira em 15 minutos e é vinculada por HMAC à chave e às identidades Entra/Redmine.
+- O transporte usa uma allowlist runtime de operações fechadas. `DELETE`, `PATCH`, proxy genérico, troca de usuário, projetos, usuários, papéis, workflows e configurações não existem na superfície permitida.
+- Atualizações exigem projeto 333, mesmo usuário, ledger vigente e marcador HMAC válido. Recursos apenas reutilizados nunca recebem `PUT`; ambiguidades interrompem o lote.
+- `REDMINE_WRITE_MODE` começa em `disabled` e pode avançar para `create` e `create-update`. Nenhuma modalidade permite exclusão.
 - O primeiro teste real deve ser somente de consulta. Uma escrita de teste requer autorização específica e, preferencialmente, projeto de treinamento ou sandbox.
+
+Consulte [Segurança e publicação do Redmine](docs/REDMINE_SECURITY.md) para a allowlist completa, limites da garantia, secrets e checklist de homologação.
 
 ### Comandos Disponíveis
 
@@ -220,6 +220,9 @@ pnpm run check
 # Testes de interface e acessibilidade
 pnpm run test:e2e
 pnpm run test:a11y
+
+# Auditoria de dependências de produção (bloqueia high/critical)
+pnpm audit --prod --audit-level high
 ```
 
 ### CI/CD no GitHub Actions
@@ -228,9 +231,11 @@ O workflow de deploy fica em `.github/workflows/deploy.yml` na raiz do repositó
 
 1. Instala dependências em `cooper-hours-web` com `pnpm@10.15.1` e lockfile congelado.
 2. Executa `pnpm run check`.
-3. Executa `node test_comprehensive.mjs` e `pnpm run test:unit` com o Redmine simulado.
-4. Instala Chromium do Playwright e roda `pnpm run test:e2e` contra `http://127.0.0.1:3000/cooper-hours/`.
+3. Executa o parser, os testes unitários e `pnpm audit --prod --audit-level high` sem credenciais reais.
+4. Instala Chromium do Playwright e roda testes E2E e de acessibilidade contra `http://127.0.0.1:3000/cooper-hours/`.
 5. Gera `pnpm run build` com `VITE_REDMINE_INTEGRATION_ENABLED=false`, cria `404.html` para fallback SPA e publica somente `cooper-hours-web/dist/public` no GitHub Pages.
+
+O Blueprint [render.yaml](../render.yaml) cria o serviço privado e o PostgreSQL. O Render usa `autoDeployTrigger: checksPass`, executa migrations antes do deploy e inicia com as escritas desativadas.
 
 O CI nunca recebe uma chave de API nem faz chamadas reais ao Redmine.
 

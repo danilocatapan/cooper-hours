@@ -9,6 +9,7 @@ export function buildAutomationRequest(
   taskConfigs: Record<string, TaskConfig>,
   timeEntries: TimeEntryDraft[],
 ): AutomationPreviewRequest {
+  const entryOccurrences = new Map<string, number>();
   return {
     importedMonth: report.importedMonth,
     minDate: report.minImportedDate,
@@ -17,6 +18,7 @@ export function buildAutomationRequest(
       const config = taskConfigs[title] ?? getDefaultTaskConfig(title);
       const issueId = parseInteger(config.issueId);
       return {
+        sourceKey: sourceTaskKey(title),
         title,
         trackerId: parseInteger(config.trackerId),
         activityId: parseInteger(config.activityId),
@@ -30,11 +32,21 @@ export function buildAutomationRequest(
       fixedVersionName: taskDefaults.fixedVersionName,
       description: taskDefaults.description,
     },
-    entries: timeEntries.map((entry) => ({
-      title: entry.title,
-      hours: entry.hours,
-      spentOn: entry.spent_on,
-      activityId: entry.activity_id,
-    })),
+    entries: timeEntries.map((entry) => {
+      const taskKey = sourceTaskKey(entry.title);
+      const occurrence = (entryOccurrences.get(taskKey) ?? 0) + 1;
+      entryOccurrences.set(taskKey, occurrence);
+      return {
+        sourceKey: `${taskKey}::entry::${occurrence}`,
+        title: entry.title,
+        hours: entry.hours,
+        spentOn: entry.spent_on,
+        activityId: entry.activity_id,
+      };
+    }),
   };
+}
+
+function sourceTaskKey(title: string): string {
+  return title.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase().replace(/\s+/g, " ");
 }

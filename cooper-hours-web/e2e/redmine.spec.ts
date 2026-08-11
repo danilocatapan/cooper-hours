@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 
 const base = process.env.E2E_BASE_URL || "http://127.0.0.1:3000/cooper-hours/";
 const testDir = path.dirname(fileURLToPath(import.meta.url));
+const testApiKey = "e2e-safe-redmine-key";
 
 test("prepara, confirma e conclui a automação com o Redmine simulado", async ({ page }) => {
   await mockRedmine(page);
@@ -13,6 +14,7 @@ test("prepara, confirma e conclui a automação com o Redmine simulado", async (
 
   await page.getByRole("tab", { name: /Automatizar/i }).click();
   await expect(page.getByTestId("redmine-automation-panel")).toBeVisible();
+  await connectRedmine(page);
   await expect(page.getByText("Danilo Catapan (danilo.catapan)")).toBeVisible();
 
   await page.getByTestId("prepare-redmine-preview").click();
@@ -21,7 +23,7 @@ test("prepara, confirma e conclui a automação com o Redmine simulado", async (
   await expect(page.getByText("duplicatas ignoradas")).toBeVisible();
 
   await page.getByTestId("open-redmine-confirmation").click();
-  await expect(page.getByRole("alertdialog", { name: /Criar tarefas e lançar horas/i })).toBeVisible();
+  await expect(page.getByRole("alertdialog", { name: /Criar e atualizar registros/i })).toBeVisible();
   await page.getByTestId("confirm-redmine-submit").click();
 
   const panel = page.getByTestId("redmine-automation-panel");
@@ -37,6 +39,7 @@ test("mantém o envio bloqueado quando a prévia encontra conflito", async ({ pa
   await page.getByRole("checkbox", { name: /Li o Aviso de Privacidade/i }).click();
   await page.locator('input[type="file"]').setInputFiles(path.join(testDir, "fixtures", "sample.csv"));
   await page.getByRole("tab", { name: /Automatizar/i }).click();
+  await connectRedmine(page);
   await page.getByTestId("prepare-redmine-preview").click();
 
   await expect(page.getByText("Prévia bloqueada")).toBeVisible();
@@ -68,20 +71,55 @@ test("exibe falha parcial e interrupção segura do lote", async ({ page }) => {
   await expect(panel.getByText("itens com falha", { exact: true }).locator("..")).toContainText("1");
 });
 
+test("mantém a chave somente na memória da aba e permite limpá-la", async ({ page }) => {
+  await mockRedmine(page);
+  await page.goto(base, { waitUntil: "networkidle" });
+  await page.getByRole("checkbox", { name: /Li o Aviso de Privacidade/i }).click();
+  await page.locator('input[type="file"]').setInputFiles(path.join(testDir, "fixtures", "sample.csv"));
+  await page.getByRole("tab", { name: /Automatizar/i }).click();
+  await connectRedmine(page);
+
+  const keyWasPersisted = await page.evaluate((key) => {
+    const values = (storage: Storage) => Array.from({ length: storage.length }, (_, index) => storage.getItem(storage.key(index) ?? ""));
+    return [...values(localStorage), ...values(sessionStorage)].some((value) => value?.includes(key));
+  }, testApiKey);
+  expect(keyWasPersisted).toBe(false);
+
+  await page.getByRole("button", { name: /Limpar API key/i }).click();
+  await expect(page.getByTestId("redmine-api-key")).toHaveValue("");
+  await page.reload({ waitUntil: "networkidle" });
+  await page.getByRole("checkbox", { name: /Li o Aviso de Privacidade/i }).click();
+  await page.locator('input[type="file"]').setInputFiles(path.join(testDir, "fixtures", "sample.csv"));
+  await page.getByRole("tab", { name: /Automatizar/i }).click();
+  await expect(page.getByTestId("redmine-api-key")).toHaveValue("");
+});
+
 async function openAutomation(page: Page) {
   await page.goto(base, { waitUntil: "networkidle" });
   await page.getByRole("checkbox", { name: /Li o Aviso de Privacidade/i }).click();
   await page.locator('input[type="file"]').setInputFiles(path.join(testDir, "fixtures", "sample.csv"));
   await page.getByRole("tab", { name: /Automatizar/i }).click();
+  await connectRedmine(page);
+}
+
+async function connectRedmine(page: Page) {
+  await page.getByTestId("redmine-api-key").fill(testApiKey);
+  await page.getByRole("button", { name: /Testar conexão/i }).click();
+  await expect(page.getByText("Danilo Catapan (danilo.catapan)")).toBeVisible();
 }
 
 async function mockRedmine(page: Page, options: { conflict?: boolean; duplicate?: boolean; partialFailure?: boolean } = {}) {
-  await page.route("**/api/redmine/status", (route) => route.fulfill({
+  await page.route("**/api/redmine/connection", (route) => {
+    expect(route.request().method()).toBe("POST");
+    expect(route.request().headers().authorization).toBe(`RedmineKey ${testApiKey}`);
+    expect(route.request().postData() ?? "").not.toContain(testApiKey);
+    return route.fulfill({
     status: 200,
     contentType: "application/json",
     body: JSON.stringify({
       configured: true,
       connected: true,
+      writeMode: "create-update",
       message: "Conexão segura com o Redmine validada.",
       account: { id: 388, login: "danilo.catapan", name: "Danilo Catapan" },
       project: { id: 333, name: "Maestro Cloud BB Corretora" },
@@ -90,15 +128,21 @@ async function mockRedmine(page: Page, options: { conflict?: boolean; duplicate?
       activities: [{ id: 9, name: "Desenvolvimento" }],
       versions: [{ id: 103, name: "SPRINT 103" }],
     }),
-  }));
+    });
+  });
 
-  await page.route("**/api/redmine/preview", (route) => route.fulfill({
+  await page.route("**/api/redmine/preview", (route) => {
+    expect(route.request().headers().authorization).toBe(`RedmineKey ${testApiKey}`);
+    return route.fulfill({
     status: 200,
     contentType: "application/json",
     body: JSON.stringify(buildPreview(options)),
-  }));
+    });
+  });
 
-  await page.route("**/api/redmine/submit", (route) => route.fulfill({
+  await page.route("**/api/redmine/submit", (route) => {
+    expect(route.request().headers().authorization).toBe(`RedmineKey ${testApiKey}`);
+    return route.fulfill({
     status: 200,
     contentType: "application/json",
     body: JSON.stringify({
@@ -119,7 +163,8 @@ async function mockRedmine(page: Page, options: { conflict?: boolean; duplicate?
           : { key: "entry-b", title: "Tarefa B", status: "created", timeEntryId: 1002, message: "Horas lançadas no Redmine." },
       ],
     }),
-  }));
+    });
+  });
 }
 
 function buildPreview(options: { conflict?: boolean; duplicate?: boolean }) {
@@ -131,29 +176,34 @@ function buildPreview(options: { conflict?: boolean; duplicate?: boolean }) {
     expiresAt: "2099-08-11T15:00:00.000Z",
     account: { id: 388, login: "danilo.catapan", name: "Danilo Catapan" },
     project: { id: 333, name: "Maestro Cloud BB Corretora" },
+    writeMode: "create-update",
     tasks: [
       {
+        sourceKey: "tarefa a",
         title: "Tarefa A",
         action: conflict ? "conflict" : "create",
         trackerId: 5,
         activityId: 9,
         issueId: null,
         candidates: conflict ? [{ id: 800, subject: "Tarefa A" }, { id: 801, subject: "Tarefa A" }] : [],
+        changes: [],
         message: conflict ? blockers[0] : "Nova tarefa será criada.",
       },
-      { title: "Tarefa B", action: "create", trackerId: 5, activityId: 9, issueId: null, candidates: [], message: "Nova tarefa será criada." },
+      { sourceKey: "tarefa b", title: "Tarefa B", action: "create", trackerId: 5, activityId: 9, issueId: null, candidates: [], changes: [], message: "Nova tarefa será criada." },
     ],
     entries: [
-      { key: "entry-a", title: "Tarefa A", action: conflict ? "blocked" : duplicate ? "duplicate" : "create", issueId: duplicate ? 901 : null, hours: 5, spentOn: "2026-04-01", activityId: 9, marker: "cooper-hours:aaaaaaaaaaaaaaaa", message: conflict ? "O lançamento depende da resolução da tarefa." : duplicate ? "Lançamento idêntico já existe no Redmine e será ignorado." : "Novo lançamento será criado." },
-      { key: "entry-b", title: "Tarefa B", action: "create", issueId: null, hours: 3, spentOn: "2026-04-01", activityId: 9, marker: "cooper-hours:bbbbbbbbbbbbbbbb", message: "Novo lançamento será criado." },
+      { sourceKey: "tarefa a::entry::1", key: "entry-a", title: "Tarefa A", action: conflict ? "blocked" : duplicate ? "duplicate" : "create", issueId: duplicate ? 901 : null, timeEntryId: null, hours: 5, spentOn: "2026-04-01", activityId: 9, marker: "cooper-hours:aaaaaaaaaaaaaaaa", changes: [], message: conflict ? "O lançamento depende da resolução da tarefa." : duplicate ? "Lançamento idêntico já existe no Redmine e será ignorado." : "Novo lançamento será criado." },
+      { sourceKey: "tarefa b::entry::1", key: "entry-b", title: "Tarefa B", action: "create", issueId: null, timeEntryId: null, hours: 3, spentOn: "2026-04-01", activityId: 9, marker: "cooper-hours:bbbbbbbbbbbbbbbb", changes: [], message: "Novo lançamento será criado." },
     ],
     blockers,
     canSubmit: !conflict,
     summary: {
       tasksToCreate: conflict ? 1 : 2,
+      tasksToUpdate: 0,
       tasksToReuse: 0,
       taskConflicts: conflict ? 1 : 0,
       entriesToCreate: conflict || duplicate ? 1 : 2,
+      entriesToUpdate: 0,
       duplicateEntries: duplicate ? 1 : 0,
       blockedEntries: conflict ? 1 : 0,
     },

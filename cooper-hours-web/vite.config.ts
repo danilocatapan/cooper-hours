@@ -2,12 +2,14 @@ import { jsxLocPlugin } from "@builder.io/vite-plugin-jsx-loc";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import path from "node:path";
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 
 const plugins = [react(), tailwindcss(), jsxLocPlugin()];
 
-export default defineConfig({
-  base: '/cooper-hours/',
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, import.meta.dirname, "VITE_");
+  return {
+  base: env.VITE_BASE_PATH || "/cooper-hours/",
   plugins,
   resolve: {
     alias: {
@@ -38,4 +40,5 @@ export default defineConfig({
       deny: ["**/.*"],
     },
   },
+  };
 });

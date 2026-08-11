@@ -1,0 +1,38 @@
+services:
+  - type: web
+    name: cooper-hours-secure
+    runtime: node
+    rootDir: cooper-hours-web
+    autoDeployTrigger: checksPass
+    buildCommand: corepack enable && corepack prepare pnpm@10.15.1 --activate && pnpm install --frozen-lockfile && pnpm run build
+    preDeployCommand: pnpm run migrate
+    startCommand: pnpm start
+    healthCheckPath: /healthz
+    maxShutdownDelaySeconds: 120
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: VITE_BASE_PATH
+        value: /
+      - key: VITE_REDMINE_INTEGRATION_ENABLED
+        value: "true"
+      - key: REDMINE_WRITE_MODE
+        value: disabled
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cooper-hours-db
+          property: connectionString
+      - key: APP_ORIGIN
+        sync: false
+      - key: AUTOMATION_SIGNING_KEY
+        sync: false
+      - key: CLOUDFLARE_ACCESS_TEAM_DOMAIN
+        sync: false
+      - key: CLOUDFLARE_ACCESS_AUD
+        sync: false
+
+databases:
+  - name: cooper-hours-db
+    databaseName: cooper_hours
+    user: cooper_hours_app
+    ipAllowList: []
