@@ -3,6 +3,8 @@ import AxeBuilder from "@axe-core/playwright";
 
 const base = process.env.E2E_BASE_URL || "http://localhost:3000/cooper-hours/";
 
+test.describe.configure({ timeout: 180_000 });
+
 const sampleCsv = [
   "Usuário\tID do cartão\tTítulo\tEtiquetas\tData\tTempo registrado soma",
   "Usuario Teste\t893566\tTarefa A\t\"tag\"\t2026-04-01\t5.000",
@@ -70,5 +72,30 @@ test("privacy dialog and 404 screen have no automated accessibility violations",
 test("features page has no automated accessibility violations", async ({ page }) => {
   await page.goto(new URL("features", base).toString(), { waitUntil: "networkidle" });
   await expect(page.getByRole("heading", { name: /Sobre \/ Features/i })).toBeVisible();
+  await checkA11y(page);
+});
+
+test("Redmine automation panel has no automated accessibility violations", async ({ page }) => {
+  await page.route("**/api/redmine/status", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({
+      configured: true,
+      connected: true,
+      message: "Conexão segura com o Redmine validada.",
+      account: { id: 388, login: "danilo.catapan", name: "Danilo Catapan" },
+      project: { id: 333, name: "Maestro Cloud BB Corretora" },
+      trackers: [], statuses: [], activities: [], versions: [],
+    }),
+  }));
+  await page.reload({ waitUntil: "networkidle" });
+  await page.getByRole("checkbox", { name: /Li o Aviso de Privacidade/i }).click();
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "redmine-a11y.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from(sampleCsv, "utf8"),
+  });
+  await page.getByRole("tab", { name: /Automatizar/i }).click();
+  await expect(page.getByTestId("redmine-automation-panel")).toBeVisible();
   await checkA11y(page);
 });

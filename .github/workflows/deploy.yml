@@ -49,6 +49,10 @@ jobs:
         working-directory: cooper-hours-web
         run: node test_comprehensive.mjs
 
+      - name: Run Redmine integration unit tests
+        working-directory: cooper-hours-web
+        run: pnpm run test:unit
+
       - name: Determine next patch version
         id: version
         run: |
@@ -73,8 +77,9 @@ jobs:
         env:
           E2E_BASE_URL: http://127.0.0.1:3000/cooper-hours/
           VITE_APP_VERSION: ${{ steps.version.outputs.VERSION }}
+          VITE_REDMINE_INTEGRATION_ENABLED: "true"
         run: |
-          VITE_APP_VERSION=${{ steps.version.outputs.VERSION }} pnpm run dev -- --host 127.0.0.1 > /tmp/cooper-hours-vite.log 2>&1 &
+          VITE_APP_VERSION=${{ steps.version.outputs.VERSION }} pnpm run dev:web -- --host 127.0.0.1 > /tmp/cooper-hours-vite.log 2>&1 &
           for attempt in {1..45}; do
             if curl -fsS "$E2E_BASE_URL" >/dev/null; then
               pnpm run test:e2e
@@ -90,6 +95,7 @@ jobs:
         working-directory: cooper-hours-web
         env:
           VITE_APP_VERSION: ${{ steps.version.outputs.VERSION }}
+          VITE_REDMINE_INTEGRATION_ENABLED: "false"
         run: pnpm run build
 
       - name: Add SPA fallback

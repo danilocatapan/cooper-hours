@@ -6,13 +6,15 @@ Sistema web para processar e validar registros de timesheet exportados do Busine
 
 **Versão:** 1.0.0  
 **Status:** Publicado e funcional  
-**Última atualização:** 15 de Abril de 2026
+**Última atualização:** 11 de agosto de 2026
 
 ---
 
 ## Privacidade e LGPD
 
-Este projeto adota o modelo **local-only**: o CSV é lido e processado no navegador do usuário, sem envio automático para backend, banco de dados, analytics ou terceiros.
+O CSV continua sendo lido e processado no navegador. No GitHub Pages, todo o fluxo permanece manual e nenhum dado é enviado automaticamente. Quando a integração local é configurada, somente os dados derivados apresentados na prévia são enviados pelo backend local ao Redmine, e apenas depois de uma confirmação explícita.
+
+A chave de API individual fica exclusivamente no processo Node local. Ela não é incluída no React, em variáveis `VITE_*`, em logs, respostas ou armazenamento do navegador.
 
 ### Matriz resumida de tratamento
 
@@ -22,11 +24,13 @@ Este projeto adota o modelo **local-only**: o CSV é lido e processado no navega
 | Relatório na tela | Datas, horas, títulos e IDs | Revisão visual pelo usuário | Apenas durante a sessão da página | Nenhum automático |
 | Cópia de JSON | Títulos, datas, horas, issue_id e activity_id | Uso manual em Cecis ou sistema autorizado | Área de transferência do dispositivo | Manual pelo usuário |
 | Download CSV | Resumo de datas, horas e atividades | Arquivamento ou envio manual autorizado | Arquivo baixado no dispositivo | Manual pelo usuário |
+| Prévia da automação local | Títulos, datas, horas, IDs, atividade e versão | Conferir tarefas, duplicatas e conflitos antes da escrita | Até 15 minutos na memória do backend local | Backend local consulta o Redmine |
+| Envio confirmado ao Redmine | Tarefas, horas, atividade e comentário de deduplicação | Criar/reutilizar tarefas e registrar horas | Conforme a política institucional do Redmine | Direto ao Redmine após confirmação |
 | Tema visual | Preferência de tema | Acessibilidade e conforto visual | localStorage do navegador | Nenhum automático |
 
 ### Textos base
 
-- Consentimento/ciência: "Confirmo que tenho autorização para importar este CSV e autorizo o tratamento local dos dados pessoais nele contidos para validação de horas e geração de relatórios/JSONs pela [PLACEHOLDER_NOME_EMPRESA]."
+- Consentimento/ciência: "Confirmo que tenho autorização para importar este CSV e tratar seus dados para validação de horas, geração de relatórios/JSONs e, quando eu confirmar a prévia no ambiente local, envio dos dados derivados ao Redmine pela [PLACEHOLDER_NOME_EMPRESA]."
 - Direitos do titular: "Você pode solicitar confirmação de tratamento, acesso, correção, anonimização, bloqueio, eliminação, portabilidade, informação sobre compartilhamento e revogação de consentimento pelo canal [PLACEHOLDER_CANAIS_CONTATO]."
 - Encarregado/DPO: "O encarregado pelo tratamento de dados pessoais pode ser contatado em [PLACEHOLDER_CONTATO_DPO]."
 
@@ -61,6 +65,13 @@ Antes de uso institucional, revise estes textos com [PLACEHOLDER_RESPONSAVEL_JUR
    - Detalhamento diário com status e atividades
    - Listagem completa de todas as atividades
    - Design responsivo com identidade visual Coopersystem
+
+5. **Automação local do Redmine**
+   - Consulta conexão, usuário, projeto 333, versões, trackers, status e atividades
+   - Reutiliza tarefas com correspondência exata, cria as inexistentes e bloqueia ambiguidades
+   - Detecta horas já lançadas e impede duplicações ou conflitos
+   - Exige uma prévia válida e uma confirmação final antes de qualquer escrita
+   - Interrompe falhas parciais e permite gerar uma nova prévia segura
 
 ### Identidade Visual Coopersystem
 
@@ -115,7 +126,7 @@ Usuário	ID do cartão	Título	Etiquetas	Data	Tempo registrado soma
 
 ## 🚀 Como Usar
 
-### Via Web (Recomendado)
+### Via Web, fluxo manual
 
 1. Acesse a publicacao atual do GitHub Pages: **https://danilocatapan.github.io/cooper-hours/**
 2. Clique em "Clique para selecionar" ou arraste um arquivo CSV
@@ -124,6 +135,8 @@ Usuário	ID do cartão	Título	Etiquetas	Data	Tempo registrado soma
    - **Resumo Geral:** Total de horas e dias registrados
    - **Detalhes Diários:** Horas por dia com status
    - **Atividades:** Lista completa de tarefas realizadas
+
+O site publicado não contém backend nem chave de API. Para usar a automação do Redmine, execute o projeto localmente.
 
 ### Interpretando o Relatório
 
@@ -156,18 +169,34 @@ Usuário	ID do cartão	Título	Etiquetas	Data	Tempo registrado soma
    pnpm install
    ```
 
-3. **Iniciar servidor de desenvolvimento:**
+3. **Configurar a integração local:**
+   ```bash
+   # PowerShell
+   Copy-Item .env.example .env.local
+   ```
+
+   Edite somente o arquivo `.env.local` e preencha `REDMINE_API_KEY` com a chave individual gerada em **Minha conta → Chave de acesso API** no Redmine. Não compartilhe, não coloque a chave em variáveis `VITE_*` e não faça commit desse arquivo.
+
+   Os demais valores já vêm configurados para `https://redmine.coopersystem.com.br`, projeto `333` e atividade `9` selecionada pela interface. Deixar a chave vazia mantém a automação desativada sem impedir o fluxo manual.
+
+4. **Iniciar frontend e backend local:**
    ```bash
    pnpm run dev
    ```
 
-4. **Acessar a aplicação:**
-   - Abra o navegador em: `http://localhost:3000`
-   - O servidor está pronto quando você ver:
-     ```
-     VITE v7.1.9  ready in XXX ms
-     ➜  Local:   http://localhost:3000/
-     ```
+5. **Acessar a aplicação:**
+   - Abra `http://127.0.0.1:3000/cooper-hours/`.
+   - O Vite atende a interface em `127.0.0.1:3000` e encaminha `/api` ao backend em `127.0.0.1:3001`.
+   - Importe o CSV, revise as configurações, abra **Automatizar**, gere a prévia e confirme o envio.
+
+### Segurança e recuperação
+
+- O backend aceita conexões apenas de `127.0.0.1`, limita o corpo das requisições, valida todos os contratos e exige um header próprio nas rotas de mutação.
+- A prévia expira em 15 minutos e o envio recebe somente seu identificador; o conteúdo não pode ser alterado depois da confirmação.
+- Cada lançamento recebe um identificador determinístico curto no comentário. Duplicatas são ignoradas e conflitos bloqueiam a escrita.
+- Tarefas e horas são gravadas sequencialmente. Depois de timeout, o backend consulta o Redmine antes de repetir; respostas ambíguas interrompem o lote.
+- Não existe opção de forçar duplicação, editar ou excluir registros nesta versão. Gere uma nova prévia depois de corrigir qualquer bloqueio.
+- O primeiro teste real deve ser somente de consulta. Uma escrita de teste requer autorização específica e, preferencialmente, projeto de treinamento ou sandbox.
 
 ### Comandos Disponíveis
 
@@ -183,7 +212,14 @@ pnpm run preview
 
 # Executar testes unitários
 node test_comprehensive.mjs
+pnpm run test:unit
+
+# Typecheck
+pnpm run check
+
+# Testes de interface e acessibilidade
 pnpm run test:e2e
+pnpm run test:a11y
 ```
 
 ### CI/CD no GitHub Actions
@@ -192,9 +228,11 @@ O workflow de deploy fica em `.github/workflows/deploy.yml` na raiz do repositó
 
 1. Instala dependências em `cooper-hours-web` com `pnpm@10.15.1` e lockfile congelado.
 2. Executa `pnpm run check`.
-3. Executa `node test_comprehensive.mjs`.
+3. Executa `node test_comprehensive.mjs` e `pnpm run test:unit` com o Redmine simulado.
 4. Instala Chromium do Playwright e roda `pnpm run test:e2e` contra `http://127.0.0.1:3000/cooper-hours/`.
-5. Gera `pnpm run build`, cria `404.html` para fallback SPA e publica `cooper-hours-web/dist/public` no GitHub Pages.
+5. Gera `pnpm run build` com `VITE_REDMINE_INTEGRATION_ENABLED=false`, cria `404.html` para fallback SPA e publica somente `cooper-hours-web/dist/public` no GitHub Pages.
+
+O CI nunca recebe uma chave de API nem faz chamadas reais ao Redmine.
 
 ---
 
@@ -210,7 +248,8 @@ cooper-hours/
 │   │   ├── pages/
 │   │   │   └── Home.tsx        # Orquestra estado, upload e abas
 │   │   ├── features/
-│   │   │   └── timesheet/      # Domínio, parsing, Cecis e painéis do produto
+│   │   │   ├── timesheet/      # Domínio, parsing, Cecis e painéis do produto
+│   │   │   └── redmine/        # Contratos do frontend, API local e automação
 │   │   ├── design-system/      # Tokens, status e componentes compartilhados
 │   │   ├── components/
 │   │   │   └── ui/             # Primitivos shadcn/ui
@@ -218,8 +257,8 @@ cooper-hours/
 │   │   ├── main.tsx            # Entry point React
 │   │   └── App.tsx             # Rotas e layout
 │   └── index.html              # HTML template
-├── server/                      # Placeholder (não usado em static)
-├── shared/                      # Tipos compartilhados
+├── server/                      # API Express local e cliente Redmine
+├── shared/                      # Contratos Zod/TypeScript compartilhados
 ├── package.json                # Dependências e scripts
 ├── vite.config.ts              # Configuração Vite
 ├── tsconfig.json               # Configuração TypeScript
@@ -248,13 +287,14 @@ client/src/
 ├── pages/
 │   └── Home.tsx                         # Orquestra estado, upload, abas e composição
 ├── features/
-│   └── timesheet/
+│   ├── timesheet/
 │       ├── constants.ts                 # Metas, defaults e opções Cecis
 │       ├── types.ts                     # Tipos de relatório, tarefas e entradas de tempo
 │       ├── parseCsv.ts                  # Parsing e validação do CSV
 │       ├── report.ts                    # Cálculos, status e helpers de relatório
 │       ├── cecis.ts                     # Parsing/mapeamento Cecis e JSONs
-│       └── components/                  # Painéis de produto do fluxo de timesheet
+│   │   └── components/                  # Painéis de produto do fluxo de timesheet
+│   └── redmine/                         # Cliente da API local, request e painel de automação
 ├── design-system/
 │   ├── README.md                        # Regras de uso do design system
 │   ├── status.ts                        # Mapa semântico de status visuais
@@ -425,10 +465,10 @@ pnpm run dev -- --port 3000
    - Gráfico de pizza com proporção de atividades
    - Tendências ao longo do período
 
-3. **Validação de Duplicatas**
-   - Detectar registros duplicados no mesmo dia
-   - Alertar usuário sobre possíveis erros de lançamento
-   - Sugerir consolidação de registros
+3. **Auditoria da automação**
+   - Exportar o resultado da prévia e do envio sem dados secretos
+   - Facilitar a conciliação de falhas parciais
+   - Exibir histórico somente com retenção e autorização definidas
 
 4. **Historico de Uploads**
    - Não salvar uploads por padrão
@@ -448,6 +488,9 @@ pnpm run dev -- --port 3000
 
 - **client/src/pages/Home.tsx:** Orquestra estado, upload e composição das abas
 - **client/src/features/timesheet/:** Regras de CSV, relatório, Cecis, tipos e painéis de produto
+- **client/src/features/redmine/:** Construção da prévia, chamadas locais e interface de confirmação
+- **server/redmine/:** Cliente HTTP, deduplicação, prévias efêmeras e envio sequencial
+- **shared/redmine.ts:** Contratos compartilhados e validação Zod
 - **client/src/design-system/:** Tokens, mapa de status e componentes reutilizáveis do design system
 - **client/src/index.css:** Estilos globais, Tailwind 4 e tokens CSS do tema Coopersystem
 - **package.json:** Dependências e scripts
@@ -491,5 +534,5 @@ Projeto desenvolvido para Coopersystem. Todos os direitos reservados.
 ---
 
 **Versão:** 1.0.0  
-**Última atualização:** 15 de Abril de 2026  
+**Última atualização:** 11 de agosto de 2026
 **Status:** ✅ Publicado e funcional

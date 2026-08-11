@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type DragEvent } from "react";
-import { CheckCircle2, ClipboardList, Clock3 } from "lucide-react";
+import { CheckCircle2, ClipboardList, Clock3, CloudCog } from "lucide-react";
+import type { AutomationPreview, AutomationSubmissionResult, RedmineConnectionStatus } from "@shared/redmine";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,6 +15,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AppShell } from "@/design-system/components/AppShell";
 import { EmptyState } from "@/design-system/components/EmptyState";
 import { WorkflowStepper } from "@/design-system/components/WorkflowStepper";
+import { createAutomationPreview, getRedmineStatus, redmineIntegrationEnabled, submitAutomationPreview } from "@/features/redmine/api";
+import { buildAutomationRequest } from "@/features/redmine/buildRequest";
+import { AutomationPanel } from "@/features/redmine/components/AutomationPanel";
 import {
   applyCecisIssuesToTaskConfigs,
   buildTasksJson,
@@ -39,6 +43,7 @@ import {
 import type { SensitiveActionKind, TaskConfig, TaskDefaults, TimesheetReport } from "@/features/timesheet/types";
 
 type CopiedTarget = "tasks" | "time" | null;
+type AutomationStage = "idle" | "status" | "preview" | "submit";
 
 export default function Home() {
   const [report, setReport] = useState<TimesheetReport | null>(null);
@@ -55,6 +60,11 @@ export default function Home() {
   const [liveMessage, setLiveMessage] = useState("");
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [pendingSensitiveAction, setPendingSensitiveAction] = useState<SensitiveActionKind | null>(null);
+  const [redmineStatus, setRedmineStatus] = useState<RedmineConnectionStatus | null>(null);
+  const [automationPreview, setAutomationPreview] = useState<AutomationPreview | null>(null);
+  const [automationResult, setAutomationResult] = useState<AutomationSubmissionResult | null>(null);
+  const [automationError, setAutomationError] = useState<string | null>(null);
+  const [automationStage, setAutomationStage] = useState<AutomationStage>("idle");
 
   const logoSrc = `${import.meta.env.BASE_URL}assets/coopersystem-logo.svg`;
   const reportStats = useMemo(() => getReportStats(report), [report]);
@@ -82,6 +92,38 @@ export default function Home() {
   const pendingTimeEntryTitles = useMemo(() => getPendingTimeEntryTitles(timeEntries), [timeEntries]);
   const conflictTaskTitles = useMemo(() => getConflictTaskTitles(cecisResponseText, uniqueTaskTitles), [cecisResponseText, uniqueTaskTitles]);
   const timeEntriesJsonText = useMemo(() => JSON.stringify(readyTimeEntries, null, 2), [readyTimeEntries]);
+  const automationRequest = useMemo(() => report
+    ? buildAutomationRequest(report, uniqueTaskTitles, taskDefaults, taskConfigs, timeEntries)
+    : null, [report, taskConfigs, taskDefaults, timeEntries, uniqueTaskTitles]);
+  const automationRequestSignature = useMemo(
+    () => automationRequest ? JSON.stringify(automationRequest) : "",
+    [automationRequest],
+  );
+
+  useEffect(() => {
+    if (!redmineIntegrationEnabled) return;
+    let active = true;
+    setAutomationStage("status");
+    void getRedmineStatus()
+      .then((status) => {
+        if (active) setRedmineStatus(status);
+      })
+      .catch((statusError) => {
+        if (active) setAutomationError(sanitizeProcessingError(statusError));
+      })
+      .finally(() => {
+        if (active) setAutomationStage("idle");
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    setAutomationPreview(null);
+    setAutomationResult(null);
+    setAutomationError(null);
+  }, [automationRequestSignature]);
 
   const selectedSummary = report?.dailySummaries.find((summary) => summary.date === selectedDate) ?? report?.dailySummaries[0];
   const summaryByDate = useMemo(() => {
@@ -104,6 +146,9 @@ export default function Home() {
     setCopiedTarget(null);
     setCecisResponseText("");
     setSelectedFileName(file.name);
+    setAutomationPreview(null);
+    setAutomationResult(null);
+    setAutomationError(null);
 
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -204,6 +249,67 @@ export default function Home() {
     setActiveResultTab("conference");
     setSelectedFileName(null);
     setLiveMessage("Dados importados removidos desta sessão do navegador.");
+    setAutomationPreview(null);
+    setAutomationResult(null);
+    setAutomationError(null);
+  };
+
+  const refreshRedmineStatus = async () => {
+    setAutomationStage("status");
+    setAutomationError(null);
+    try {
+      const status = await getRedmineStatus();
+      setRedmineStatus(status);
+      setLiveMessage(status.connected ? "Conexão com o Redmine validada." : status.message);
+    } catch (statusError) {
+      const message = sanitizeProcessingError(statusError);
+      setAutomationError(message);
+      setLiveMessage("Não foi possível validar a conexão com o Redmine.");
+    } finally {
+      setAutomationStage("idle");
+    }
+  };
+
+  const prepareAutomation = async () => {
+    if (!automationRequest) return;
+    setAutomationStage("preview");
+    setAutomationError(null);
+    setAutomationResult(null);
+    try {
+      const preview = await createAutomationPreview(automationRequest);
+      setAutomationPreview(preview);
+      setLiveMessage(`Prévia pronta: ${preview.summary.tasksToCreate} tarefas e ${preview.summary.entriesToCreate} lançamentos novos.`);
+    } catch (previewError) {
+      const message = sanitizeProcessingError(previewError);
+      setAutomationError(message);
+      setLiveMessage("Não foi possível preparar a prévia do Redmine.");
+    } finally {
+      setAutomationStage("idle");
+    }
+  };
+
+  const submitAutomation = async () => {
+    if (!automationPreview) return;
+    setAutomationStage("submit");
+    setAutomationError(null);
+    try {
+      const result = await submitAutomationPreview(automationPreview.previewId);
+      setAutomationResult(result);
+      setLiveMessage(result.message);
+    } catch (submitError) {
+      const message = sanitizeProcessingError(submitError);
+      setAutomationError(message);
+      setLiveMessage("O envio ao Redmine não foi concluído.");
+    } finally {
+      setAutomationStage("idle");
+    }
+  };
+
+  const resetAutomation = () => {
+    setAutomationPreview(null);
+    setAutomationResult(null);
+    setAutomationError(null);
+    setLiveMessage("Prévia da automação removida.");
   };
 
   const copyJson = async (jsonText: string, target: Exclude<CopiedTarget, null>) => {
@@ -327,7 +433,7 @@ export default function Home() {
                 taskCount={uniqueTaskTitles.length}
                 mappedTimeEntries={readyTimeEntries.length}
                 totalTimeEntries={timeEntries.length}
-                blockerCount={pendingTimeEntryTitles.length + conflictTaskTitles.length}
+                blockerCount={pendingTimeEntryTitles.length + conflictTaskTitles.length + (automationPreview?.blockers.length ?? 0)}
               />
 
               <Tabs value={activeResultTab} onValueChange={setActiveResultTab} className="space-y-6">
@@ -344,6 +450,12 @@ export default function Home() {
                     <Clock3 className="h-4 w-4" />
                     Registrar Tempo
                   </TabsTrigger>
+                  {redmineIntegrationEnabled ? (
+                    <TabsTrigger value="automation" className="flex-none px-3 py-2">
+                      <CloudCog className="h-4 w-4" />
+                      Automatizar
+                    </TabsTrigger>
+                  ) : null}
                 </TabsList>
 
                 <TabsContent value="conference">
@@ -388,6 +500,22 @@ export default function Home() {
                     onCopyTimeEntries={() => requestSensitiveAction("copyTimeEntries")}
                   />
                 </TabsContent>
+
+                {redmineIntegrationEnabled ? (
+                  <TabsContent value="automation">
+                    <AutomationPanel
+                      status={redmineStatus}
+                      preview={automationPreview}
+                      result={automationResult}
+                      error={automationError}
+                      stage={automationStage}
+                      onRefreshStatus={() => void refreshRedmineStatus()}
+                      onPrepare={() => void prepareAutomation()}
+                      onSubmit={() => void submitAutomation()}
+                      onReset={resetAutomation}
+                    />
+                  </TabsContent>
+                ) : null}
               </Tabs>
             </div>
           ) : (

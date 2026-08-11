@@ -2,7 +2,7 @@ export const LGPD_NOTICE = {
   controllerName: "[PLACEHOLDER_NOME_EMPRESA]",
   contactChannel: "[PLACEHOLDER_CANAIS_CONTATO]",
   dpoContact: "[PLACEHOLDER_CONTATO_DPO]",
-  processingMode: "local-browser-only",
+  processingMode: "local-browser-with-optional-redmine-submission",
   dataCategories: [
     "nome do usuário",
     "IDs de tarefas/cartões",
@@ -11,11 +11,13 @@ export const LGPD_NOTICE = {
     "horas",
     "etiquetas",
     "respostas coladas da Cecis",
+    "identificadores e comentários de deduplicação do Redmine",
   ],
   purposes: [
     "validar lançamentos de horas",
     "gerar JSONs para uso manual em sistemas internos",
     "permitir conferência pelo próprio usuário",
+    "criar ou reutilizar tarefas e lançar horas no Redmine após confirmação explícita",
   ],
   legalBasisSuggestion:
     "definir conforme o contexto: execução de contrato, legítimo interesse, cumprimento de obrigação legal/regulatória ou consentimento quando aplicável",
