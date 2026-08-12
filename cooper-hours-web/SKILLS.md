@@ -35,32 +35,7 @@ Este documento lista skills (Codex/Agent Skills) que recomendo adicionar ao proj
 - **codebase-recon / developer-growth-analysis**
   - Ganho: análises do repositório (hotspots, dívida técnica) e históricos, útil para priorizar refatorações.
 
-- **Valyu / langsmith-fetch (Pesquisa & dados externos)**
-  - Ganho: integrações para pesquisas, papers e dados atualizados — útil ao justificar heurísticas do algoritmo de evidências.
-
-## Skills custom sugeridas para evidências de 8 horas trabalhadas
-
-- **workday-evidence** (skill custom que sugerimos criar)
-  - Objetivo: agregar sinais que comprovem um dia de trabalho de 8h e gerar um pacote de evidências com score de confiança.
-  - Inputs possíveis:
-    - registros de ponto (in/out) do app
-    - timestamps de commits no repo
-    - eventos de UI (start/stop de timers)
-    - atividades de teclado/integrações (opcional, com consentimento)
-    - screenshots/artefatos anexados (opcional)
-  - Output: JSON com intervalos cobertos, gaps detectados, motivos, e um `confidence_score` + resumo em texto pronto para auditoria.
-  - Ganho: criar evidências auditáveis para relatórios e export (CSV/PDF), reduzir fraudes e facilitar verificação.
-  - Como implementar (alto nível): agregador no backend que une fontes por usuário+dia, aplica heurísticas (minutos ativos, sobreposição, máximo idle), e gera relatório + hashes das evidências.
-
-- **timesheet-validator** (skill auxiliar)
-  - Objetivo: validar entradas do usuário aplicando regras (máximo horas continuas, pausa mínima, etc.) e sugerir correções.
-
-## Onde integrar no projeto atual
-- Backend (`server/`): implementar `workday-evidence` como endpoint que recebe eventos e retorna relatório e score.
-- Frontend (`client/`): adicionar UX para anexar evidências (commits, screenshots), visualizar relatório e marcar anomalias.
-- CI / DevOps: usar `gh-fix-ci` e `webapp-testing` para manter qualidade ao introduzir heurísticas.
-
-## Automação: revisar skills e adaptar prompts (agents)
+## Uso de skills nos prompts
 - Recomendo manter um arquivo de agente (`AGENTS.md`) no repositório com instruções padrão (AGENTS.md é lido por Codex/Claude para instruções persistentes).
 - Comandos práticos para revisar skills localmente:
   - `ls ~/.agents/skills` — listar skills instaladas
@@ -71,10 +46,6 @@ Este documento lista skills (Codex/Agent Skills) que recomendo adicionar ao proj
 - Sempre leia o `SKILL.md` da skill instalada; a `description` explica quando o agente dispara.
 - Se quiser forçar uma skill em uma sessão, mencione o nome da skill no prompt (ex.: "Use create-plan para... ").
 - Para Copilot: GitHub Copilot não usa diretamente o padrão `~/.agents/skills`. Skills funcionam com Codex / Codex CLI / Claude Code / outros clientes que suportam Agent Skills.
-
-## Próximos passos que posso executar agora
-- Criar a skill custom `workday-evidence` - protótipo do `SKILL.md` + backend scaffold.
-- Gerar templates de `SKILL.md` para as skills recomendadas.
 
 ---
 Arquivo criado: [SKILLS.md](SKILLS.md)

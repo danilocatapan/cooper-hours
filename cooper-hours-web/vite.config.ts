@@ -14,7 +14,6 @@ export default defineConfig(({ mode }) => {
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "client", "src"),
-      "@shared": path.resolve(import.meta.dirname, "shared"),
       "@assets": path.resolve(import.meta.dirname, "attached_assets"),
     },
   },
@@ -29,12 +28,6 @@ export default defineConfig(({ mode }) => {
     strictPort: false, // Will find next available port if 3000 is busy
     host: "127.0.0.1",
     allowedHosts: ["localhost", "127.0.0.1"],
-    proxy: {
-      "/api": {
-        target: "http://127.0.0.1:3001",
-        changeOrigin: false,
-      },
-    },
     fs: {
       strict: true,
       deny: ["**/.*"],

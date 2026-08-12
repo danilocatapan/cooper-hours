@@ -13,19 +13,19 @@ import { LGPD_NOTICE } from "../lgpd";
 const treatmentItems = [
   {
     title: "Finalidade",
-    body: "Conferir lançamentos de horas, identificar pendências, gerar relatórios ou JSONs e, opcionalmente, registrar tarefas e horas no Redmine.",
+    body: "Conferir lançamentos de horas, identificar pendências e gerar relatórios ou JSONs para uso manual.",
   },
   {
     title: "Tratamento local",
-    body: "O CSV completo é processado no navegador. Na automação local, somente os dados derivados exibidos na prévia seguem pelo backend local para o Redmine após sua confirmação.",
+    body: "O CSV completo é processado somente no navegador. Nenhum dado é enviado para servidor, banco de dados ou serviço externo.",
   },
   {
     title: "Compartilhamento",
-    body: "O fluxo publicado permanece manual. No ambiente local configurado, o envio ao Redmine exige uma prévia sem bloqueios e uma confirmação explícita do usuário.",
+    body: "O fluxo é exclusivamente manual. O compartilhamento só acontece quando você copia um JSON ou baixa um relatório e decide utilizá-lo.",
   },
   {
     title: "Retenção",
-    body: "O CSV fica no estado da página e as prévias expiram no backend local. Registros confirmados ficam no Redmine conforme a política institucional; a preferência de tema pode ficar no navegador.",
+    body: "O CSV fica apenas no estado da página e é removido ao recarregar ou fechar a aba. Somente a preferência de tema pode ficar salva no navegador.",
   },
 ];
 
@@ -42,7 +42,7 @@ export function PrivacyNoticeDialog() {
         <DialogHeader className="border-b border-border px-5 py-4 pr-12 text-left sm:px-6 sm:pr-14">
           <DialogTitle>Aviso de Privacidade LGPD</DialogTitle>
           <DialogDescription>
-            Informações essenciais sobre o tratamento local e a integração opcional com o Redmine.
+            Informações essenciais sobre o tratamento local dos dados no fluxo manual.
           </DialogDescription>
         </DialogHeader>
 

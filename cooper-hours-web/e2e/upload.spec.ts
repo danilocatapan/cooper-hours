@@ -24,6 +24,7 @@ const row = (date: string, hours: string, title = `Tarefa ${date}`) =>
 test('initial screen is usable and free of legacy debug hooks', async ({ page }) => {
   await expect(page.getByRole('heading', { name: /validação diária de 8h/i })).toBeVisible();
   await expect(page.getByText('Validar lançamento diário de 8h')).toBeVisible();
+  await expect(page.getByText('O CSV é processado somente neste navegador e não é enviado pela aplicação.')).toBeVisible();
   await expect(page.getByText('Como a validação funciona')).toBeVisible();
   await expect(page.getByText(/Envie o CSV para começar/i)).toBeVisible();
   await expect(page.getByRole('button', { name: /Formato do arquivo/i })).toBeVisible();
@@ -48,6 +49,7 @@ test('rendered Portuguese text is free of mojibake artifacts', async ({ page }) 
 
   await page.locator('input[type="file"]').setInputFiles(path.join(testDir, 'fixtures', 'sample.csv'));
   await expect(page.getByText('Conferência do período')).toBeVisible();
+  await expect(page.getByRole('tab', { name: /Automatizar/i })).toHaveCount(0);
   const reportText = await page.locator('body').innerText();
   expect(reportText).not.toMatch(/[ÃÂ�]|â€”|â†’|Ã§|Ã£|Ã¡|Ã©|Ã­|Ã³|Ãº/);
 });

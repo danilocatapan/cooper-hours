@@ -94,7 +94,7 @@ export function UploadPanel({
                 Li o Aviso de Privacidade e confirmo autorização para importar este arquivo.
               </label>
               <p id="privacy-acknowledgement-help" className="mt-1 text-xs leading-5 text-muted-foreground">
-                O CSV é processado neste navegador. Dados derivados só são enviados ao Redmine no ambiente local, após prévia e confirmação explícita.
+                O CSV é processado somente neste navegador e não é enviado pela aplicação.
               </p>
               <div className="mt-2">
                 <PrivacyNoticeDialog />

@@ -37,14 +37,6 @@ Este arquivo é um resumo enxuto das skills recomendadas/registradas, para refer
   - O que fazem: mapeiam hotspots, dívida técnica e padrões de desenvolvimento.
   - Usar: "Rode codebase-recon" para priorizar refatorações.
 
-- Valyu / langsmith-fetch
-  - O que fazem: integradores de pesquisa externa (papers, GH, noticias).
-  - Usar: "Pesquise com Valyu sobre X".
-
-- workday-evidence (sugerida, custom)
-  - O que faz: agrega sinais para provar um dia de 8h (pontos, commits, timers) e gera relatório com `confidence_score`.
-  - Como usar (planejado): enviar eventos ao endpoint do backend e pedir "Gerar relatório de evidências para `YYYY-MM-DD`".
-
 Comandos úteis para inspeção local das skills
 
 ```bash
