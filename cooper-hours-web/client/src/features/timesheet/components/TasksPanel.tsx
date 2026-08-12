@@ -64,9 +64,9 @@ export function TasksPanel({
           <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h3 className="text-sm font-semibold text-foreground">Dados padrão da tarefa</h3>
-              <p className="text-xs text-muted-foreground">O nome amigável aparece primeiro; o campo da API fica entre parênteses.</p>
+              <p className="text-sm leading-6 text-muted-foreground">O nome amigável aparece primeiro; o campo da API fica entre parênteses.</p>
             </div>
-            <details className="max-w-sm rounded-md border border-border bg-card p-3 text-xs text-muted-foreground">
+            <details className="max-w-sm rounded-md border border-border bg-card p-3 text-sm text-muted-foreground">
               <summary className="cursor-pointer font-semibold text-foreground">Termos Cecis</summary>
               <p className="mt-2">Projeto identifica o produto, responsável recebe a tarefa, tipo define o fluxo e atividade classifica o lançamento de horas.</p>
             </details>
@@ -78,11 +78,11 @@ export function TasksPanel({
             <FieldInput id="due-date" label="Prazo" apiName="due_date" type="date" value={taskDefaults.dueDate} onChange={(value) => onTaskDefaultChange("dueDate", value)} />
             <FieldInput id="status-id" label="Status" apiName="status_id" value={taskDefaults.statusId} onChange={(value) => onTaskDefaultChange("statusId", value)} />
             <div className="space-y-2 sm:col-span-2 xl:col-span-1">
-              <Label htmlFor="fixed-version-name" className="text-xs font-semibold text-muted-foreground">Sprint/Versão <span className="font-mono font-normal">(fixed_version_name)</span></Label>
+              <Label htmlFor="fixed-version-name" className="text-sm font-semibold text-muted-foreground">Sprint/Versão <span className="font-mono font-normal">(fixed_version_name)</span></Label>
               <Input id="fixed-version-name" value={taskDefaults.fixedVersionName} onChange={(event) => onTaskDefaultChange("fixedVersionName", event.target.value)} />
             </div>
             <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="description" className="text-xs font-semibold text-muted-foreground">Descrição <span className="font-mono font-normal">(description)</span></Label>
+              <Label htmlFor="description" className="text-sm font-semibold text-muted-foreground">Descrição <span className="font-mono font-normal">(description)</span></Label>
               <Textarea id="description" className="min-h-24" value={taskDefaults.description} onChange={(event) => onTaskDefaultChange("description", event.target.value)} />
             </div>
           </div>
@@ -92,7 +92,7 @@ export function TasksPanel({
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="text-sm font-semibold text-foreground">Títulos encontrados</h3>
-              <p className="text-xs text-muted-foreground">{uniqueTaskTitles.length} tarefa(s) serão geradas.</p>
+              <p className="text-sm text-muted-foreground">{uniqueTaskTitles.length} tarefa(s) serão geradas.</p>
             </div>
             <Badge variant="outline" className="border-primary/40 bg-primary/10 text-primary">{importedMonth}</Badge>
           </div>
@@ -100,7 +100,7 @@ export function TasksPanel({
           {denseMode && (
             <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
               <div className="space-y-2">
-                <Label htmlFor="task-filter" className="text-xs font-semibold text-muted-foreground">Buscar título</Label>
+                <Label htmlFor="task-filter" className="text-sm font-semibold text-muted-foreground">Buscar título</Label>
                 <Input id="task-filter" value={taskFilter} onChange={(event) => setTaskFilter(event.target.value)} placeholder="Filtrar por assunto" />
               </div>
               <label className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground">
@@ -151,27 +151,31 @@ export function TasksPanel({
               {filteredTaskTitles.map((title) => (
                 <div key={title} className="grid grid-cols-1 gap-4 rounded-lg border border-surface-border bg-surface-raised p-4 shadow-sm lg:grid-cols-[minmax(0,1fr)_190px_190px_160px] lg:items-end">
                   <div className="min-w-0 lg:pb-1">
-                    <Label className="text-xs font-semibold text-muted-foreground">Assunto <span className="font-mono font-normal">(subject)</span></Label>
+                    <Label className="text-sm font-semibold text-muted-foreground">Assunto <span className="font-mono font-normal">(subject)</span></Label>
                     <p className="mt-2 break-words text-sm font-semibold leading-5 text-foreground">
                       <HighlightedTitle title={title} filter={taskFilter} />
                     </p>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-xs font-semibold text-muted-foreground">Tipo <span className="font-mono font-normal">(tracker_id)</span></Label>
+                    <Label className="text-sm font-semibold text-muted-foreground">Tipo <span className="font-mono font-normal">(tracker_id)</span></Label>
                     <TaskSelect title={title} label="Tipo" field="trackerId" value={taskConfigs[title]?.trackerId ?? getDefaultTaskConfig(title).trackerId} options={trackerOptions} onTaskConfigChange={onTaskConfigChange} />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-xs font-semibold text-muted-foreground">Atividade <span className="font-mono font-normal">(activity_id)</span></Label>
+                    <Label className="text-sm font-semibold text-muted-foreground">Atividade <span className="font-mono font-normal">(activity_id)</span></Label>
                     <TaskSelect title={title} label="Atividade" field="activityId" value={taskConfigs[title]?.activityId ?? getDefaultTaskConfig(title).activityId} options={activityOptions} onTaskConfigChange={onTaskConfigChange} />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor={`issue-${normalizeTitle(title)}`} className="text-xs font-semibold text-muted-foreground">Issue pós-Cecis <span className="font-mono font-normal">(issue_id)</span></Label>
+                    <Label htmlFor={`issue-${normalizeTitle(title)}`} className="text-sm font-semibold text-muted-foreground">Issue pós-Cecis <span className="font-mono font-normal">(issue_id)</span></Label>
                     <IssueInput id={`issue-${normalizeTitle(title)}`} title={title} value={taskConfigs[title]?.issueId ?? ""} onTaskConfigChange={onTaskConfigChange} />
                   </div>
                 </div>
               ))}
             </div>
           )}
+
+          <p className="mt-4 rounded-lg border border-selection/30 bg-selection/10 p-3 text-sm leading-6 text-foreground">
+            O issue_id pode ser informado manualmente em cada tarefa ou preenchido em lote na etapa “Mapear IDs” ao colar a resposta da Cecis.
+          </p>
         </section>
       </SectionCard>
 
@@ -211,7 +215,7 @@ function FieldInput({
 }) {
   return (
     <div className="space-y-2">
-      <Label htmlFor={id} className="text-xs font-semibold text-muted-foreground">{label} <span className="font-mono font-normal">({apiName})</span></Label>
+      <Label htmlFor={id} className="text-sm font-semibold text-muted-foreground">{label} <span className="font-mono font-normal">({apiName})</span></Label>
       <Input id={id} type={type} inputMode={type === "date" ? undefined : "numeric"} value={value} onChange={(event) => onChange(event.target.value)} />
     </div>
   );
@@ -269,7 +273,7 @@ function IssueInput({
         value={value}
         onChange={(event) => onTaskConfigChange(title, "issueId", event.target.value)}
       />
-      {invalid && <p className="mt-1 text-xs text-danger">Use apenas números.</p>}
+      {invalid && <p className="mt-1 text-sm text-danger">Use apenas números.</p>}
     </>
   );
 }

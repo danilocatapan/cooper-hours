@@ -18,10 +18,10 @@ O Cooper Hours busca atender WCAG 2.2 AA na experiência principal de importaç�
 - Alto contraste e redução de movimento respeitada.
 - Confirmação antes de copiar ou baixar dados pessoais.
 
-## Contato
+## Contexto do projeto
 
-Canal de atendimento: `[PLACEHOLDER_CANAIS_CONTATO]`.
+O Cooper Hours é uma ferramenta demonstrativa e independente. Esta declaração descreve apenas os recursos técnicos do projeto e não representa uma política oficial da Coopersystem.
 
-Encarregado/DPO: `[PLACEHOLDER_CONTATO_DPO]`.
+O projeto não mantém canal institucional, controlador ou encarregado/DPO. O CSV é processado localmente no navegador e deve ser utilizado somente por pessoas autorizadas a consultar os dados escolhidos.
 
-Esta declaração deve ser revisada por `[PLACEHOLDER_RESPONSAVEL_JURIDICO]` antes de uso institucional.
+Problemas técnicos e de acessibilidade podem ser registrados no repositório público do projeto.

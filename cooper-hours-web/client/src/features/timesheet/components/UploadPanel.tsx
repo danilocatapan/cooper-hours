@@ -35,9 +35,9 @@ const requiredCsvFields = [
 ];
 
 const csvExample = `Usuário\tID do cartão\tTítulo\tEtiquetas\tData\tTempo registrado soma
-[PLACEHOLDER_USUARIO]\t893566\t[Back] [Arquitetural] Replicação dos endpoints\t"QualityBot,#inic0004688"\t2026-04-01\t5.000
-[PLACEHOLDER_USUARIO]\t987589\t[313-Maestro] Ritos (Daily, Planning)\t"#inic0004688,#bbseg"\t2026-04-01\t1.000
-[PLACEHOLDER_USUARIO]\t987605\t[313-Maestro] Refinamento\t"#inic0004688,#bbseg"\t2026-04-01\t2.000`;
+Pessoa Exemplo\t893566\t[Back] [Arquitetural] Replicação dos endpoints\t"QualityBot,#inic0004688"\t2026-04-01\t5.000
+Pessoa Exemplo\t987589\t[313-Maestro] Ritos (Daily, Planning)\t"#inic0004688,#bbseg"\t2026-04-01\t1.000
+Pessoa Exemplo\t987605\t[313-Maestro] Refinamento\t"#inic0004688,#bbseg"\t2026-04-01\t2.000`;
 
 interface UploadPanelProps {
   isLoading: boolean;
@@ -85,16 +85,16 @@ export function UploadPanel({
               id="privacy-acknowledgement"
               checked={privacyAcknowledged}
               onCheckedChange={(checked) => onPrivacyAcknowledgedChange(checked === true)}
-              aria-label="Li o Aviso de Privacidade e confirmo autorização para importar este arquivo"
+              aria-label="Entendi o processamento local e confirmo que posso usar este arquivo"
               aria-describedby="privacy-acknowledgement-help"
               className="mt-0.5"
             />
             <div className="min-w-0 flex-1">
               <label htmlFor="privacy-acknowledgement" className="cursor-pointer text-sm font-medium leading-5 text-foreground">
-                Li o Aviso de Privacidade e confirmo autorização para importar este arquivo.
+                Entendi o processamento local e confirmo que posso usar este arquivo.
               </label>
-              <p id="privacy-acknowledgement-help" className="mt-1 text-xs leading-5 text-muted-foreground">
-                O CSV é processado somente neste navegador e não é enviado pela aplicação.
+              <p id="privacy-acknowledgement-help" className="mt-1 text-sm leading-6 text-muted-foreground">
+                O CSV permanece neste navegador. Use somente dados que você esteja autorizado a consultar.
               </p>
               <div className="mt-2">
                 <PrivacyNoticeDialog />
@@ -146,12 +146,12 @@ export function UploadPanel({
           >
             <Upload className="mb-2 h-8 w-8 text-muted-foreground" />
             <span className="whitespace-normal text-sm font-medium text-foreground">Selecionar CSV</span>
-            <span id="file-upload-help" className="mt-1 max-w-full whitespace-normal break-words text-xs text-muted-foreground">
-              {privacyAcknowledged ? "Use Enter, Espaço ou arraste um arquivo CSV aqui" : "Confirme a ciência sobre privacidade antes de importar"}
+            <span id="file-upload-help" className="mt-1 max-w-full whitespace-normal break-words text-sm text-muted-foreground">
+              {privacyAcknowledged ? "Use Enter, Espaço ou arraste um arquivo CSV aqui" : "Confirme que entendeu o processamento local antes de importar"}
             </span>
           </Button>
           {selectedFileName && (
-            <p className="mt-3 max-w-full break-words text-xs text-muted-foreground">
+            <p className="mt-3 max-w-full break-words text-sm text-muted-foreground">
               Último arquivo selecionado: <span className="break-all font-medium text-foreground">{selectedFileName}</span>
             </p>
           )}
@@ -177,7 +177,7 @@ export function UploadPanel({
           <div className="space-y-3 rounded-lg border border-success/30 bg-success/10 p-4">
             <div>
               <p className="text-sm font-medium text-success">Arquivo analisado com sucesso</p>
-              <p className="mt-1 text-xs text-foreground">
+              <p className="mt-1 text-sm text-foreground">
                 {completeDays} de {report.businessDayCount} dias úteis com 8h completas
               </p>
             </div>
@@ -194,6 +194,16 @@ export function UploadPanel({
             A aplicação não mantém histórico de uploads. Evite usar arquivos pessoais em dispositivos compartilhados.
           </AlertDescription>
         </Alert>
+
+        <details className="rounded-lg border border-border bg-background/40 p-3 text-sm">
+          <summary className="cursor-pointer font-semibold text-foreground">Como completar o fluxo</summary>
+          <ol className="mt-3 list-decimal space-y-2 pl-5 leading-6 text-muted-foreground">
+            <li>Exporte no BusinessMap um CSV com Título, Data e Tempo registrado soma.</li>
+            <li>Confira os dias e revise os dados usados para criar as tarefas.</li>
+            <li>Copie o JSON de tarefas para o fluxo manual da Cecis.</li>
+            <li>Cole a resposta com os IDs criados e copie os lançamentos finais.</li>
+          </ol>
+        </details>
 
         {report && report.ignoredLineCount > 0 && (
           <Alert className="border-warning/40 bg-warning/10 text-warning">
@@ -243,7 +253,7 @@ export function UploadPanel({
                   {requiredCsvFields.map((field) => (
                     <div key={field.name} className="min-w-0 rounded-lg border border-border bg-surface-subtle p-3">
                       <p className="text-sm font-semibold text-foreground">{field.name}</p>
-                      <p className="mt-2 text-xs leading-5 text-muted-foreground">{field.description}</p>
+                      <p className="mt-2 text-sm leading-6 text-muted-foreground">{field.description}</p>
                       <p className="mt-3 whitespace-pre-wrap break-words rounded-md bg-background/70 px-2 py-1 font-mono text-[11px] text-foreground">
                         {field.example}
                       </p>
@@ -257,7 +267,7 @@ export function UploadPanel({
                   <p id="csv-example" className="text-sm font-semibold text-foreground">
                     Exemplo de CSV:
                   </p>
-                  <p className="text-xs text-muted-foreground">Separado por tabulação no exemplo.</p>
+                  <p className="text-sm text-muted-foreground">Separado por tabulação no exemplo.</p>
                 </div>
                 <pre
                   data-testid="csv-format-example"
@@ -265,7 +275,7 @@ export function UploadPanel({
                 >
                   <code className="block min-w-0 whitespace-pre-wrap break-words">{csvExample}</code>
                 </pre>
-                <p className="mt-3 rounded-lg border border-selection/30 bg-selection/10 p-3 text-xs leading-5 text-foreground">
+                <p className="mt-3 rounded-lg border border-selection/30 bg-selection/10 p-3 text-sm leading-6 text-foreground">
                   O arquivo pode ser separado por vírgula, ponto-e-vírgula ou tabulação.
                 </p>
               </section>
@@ -308,7 +318,7 @@ function CsvIssuesPanel({
       </summary>
       <div className="mt-3 space-y-3">
         <div className="flex min-w-0 flex-col gap-2">
-          <label className="text-xs font-medium text-foreground" htmlFor="csv-issue-filter">
+          <label className="text-sm font-medium text-foreground" htmlFor="csv-issue-filter">
             Filtrar inconsistências
           </label>
           <div className="grid min-w-0 gap-2">
@@ -336,7 +346,7 @@ function CsvIssuesPanel({
               <p className="font-medium text-foreground">
                 Linha {issue.lineNumber}: {issue.reason}
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
                 {issue.date ? `Data: ${issue.date}. ` : ""}
                 {issue.hours ? `Horas: ${issue.hours}. ` : ""}
                 {issue.suggestion}
@@ -344,10 +354,10 @@ function CsvIssuesPanel({
             </div>
           ))}
           {visibleIssues.length > 8 && (
-            <p className="text-xs text-muted-foreground">Mostrando as 8 primeiras inconsistências do filtro atual.</p>
+            <p className="text-sm text-muted-foreground">Mostrando as 8 primeiras inconsistências do filtro atual.</p>
           )}
           {visibleIssues.length === 0 && (
-            <p className="rounded-md border border-border bg-card p-3 text-xs text-muted-foreground">
+            <p className="rounded-md border border-border bg-card p-3 text-sm text-muted-foreground">
               Nenhuma inconsistência encontrada para este filtro.
             </p>
           )}

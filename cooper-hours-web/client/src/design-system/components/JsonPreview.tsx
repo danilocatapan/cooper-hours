@@ -56,12 +56,12 @@ export function JsonPreview({ title, description, value, copied, testId, onCopy,
           <ValidationIcon className="mt-0.5 h-4 w-4 shrink-0" />
           <div>
             <p className="font-semibold">{validation.title}</p>
-            <p className="mt-1 text-xs text-foreground">{validation.description}</p>
+            <p className="mt-1 text-sm leading-6 text-foreground">{validation.description}</p>
           </div>
         </div>
       )}
-      <p className="mb-3 rounded-lg border border-selection/30 bg-selection/10 p-3 text-xs leading-5 text-foreground">
-        {privacyNotice ?? "Este conteúdo pode conter dados pessoais. Copie apenas para sistemas autorizados e conforme a finalidade informada no Aviso de Privacidade."}
+      <p className="mb-3 rounded-lg border border-selection/30 bg-selection/10 p-3 text-sm leading-6 text-foreground">
+        {privacyNotice ?? "Este conteúdo pode conter dados derivados do CSV. Copie apenas para destinos autorizados e de acordo com a finalidade do seu trabalho."}
       </p>
       <pre
         data-testid={testId}

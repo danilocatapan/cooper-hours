@@ -7,7 +7,7 @@ const testDir = path.dirname(fileURLToPath(import.meta.url));
 
 test.beforeEach(async ({ page }) => {
   await page.goto(base, { waitUntil: 'networkidle' });
-  const privacyCheckbox = page.getByRole('checkbox', { name: /Li o Aviso de Privacidade/i });
+  const privacyCheckbox = page.getByRole('checkbox', { name: /Entendi o processamento local/i });
   if (await privacyCheckbox.isVisible()) {
     await privacyCheckbox.click();
   }
@@ -24,7 +24,7 @@ const row = (date: string, hours: string, title = `Tarefa ${date}`) =>
 test('initial screen is usable and free of legacy debug hooks', async ({ page }) => {
   await expect(page.getByRole('heading', { name: /validação diária de 8h/i })).toBeVisible();
   await expect(page.getByText('Validar lançamento diário de 8h')).toBeVisible();
-  await expect(page.getByText('O CSV é processado somente neste navegador e não é enviado pela aplicação.')).toBeVisible();
+  await expect(page.getByText(/O CSV permanece neste navegador/i)).toBeVisible();
   await expect(page.getByText('Como a validação funciona')).toBeVisible();
   await expect(page.getByText(/Envie o CSV para começar/i)).toBeVisible();
   await expect(page.getByRole('button', { name: /Formato do arquivo/i })).toBeVisible();
@@ -59,7 +59,7 @@ test('CSV format instructions open in a readable modal', async ({ page }) => {
   await expect(page.getByRole('dialog', { name: /Formato do arquivo CSV/i })).toBeVisible();
   await expect(page.getByText('Campos obrigatórios:')).toBeVisible();
   await expect(page.getByText('Exemplo de CSV:')).toBeVisible();
-  await expect(page.getByText('Tempo registrado soma').first()).toBeVisible();
+  await expect(page.getByRole('dialog', { name: /Formato do arquivo CSV/i }).getByText('Tempo registrado soma', { exact: true }).first()).toBeVisible();
   await expect(page.getByTestId('csv-format-example')).toBeVisible();
 });
 
@@ -76,9 +76,88 @@ test('upload control is keyboard accessible and exposes workflow progress', asyn
   await chooser.setFiles(filePath);
 
   await expect(page.getByText('Arquivo analisado com sucesso')).toBeVisible({ timeout: 5000 });
-  await expect(page.getByRole('navigation', { name: /Progresso do fluxo CSV para Cecis/i })).toBeVisible();
-  await expect(page.getByText('1. Conferir')).toBeVisible();
-  await expect(page.getByText('4. Copiar lançamentos')).toBeVisible();
+  await expect(page.getByRole('navigation', { name: /Etapas do fluxo CSV para Cecis/i })).toBeVisible();
+  await expect(page.getByTestId('workflow-step-conference')).toContainText('Conferir');
+  await expect(page.getByTestId('workflow-step-copy')).toContainText('Copiar lançamentos');
+});
+
+test('privacy notice is demonstrative, local, and free of institutional placeholders', async ({ page }) => {
+  await page.getByRole('button', { name: /Privacidade e processamento local/i }).click();
+  const dialog = page.getByRole('dialog', { name: /Privacidade e processamento local/i });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText(/ferramenta demonstrativa e independente/i)).toBeVisible();
+  await expect(dialog.getByText(/não representa uma política oficial/i)).toBeVisible();
+  await expect(dialog.getByText(/não substitui orientações institucionais/i)).toBeVisible();
+  await expect(dialog).not.toContainText('PLACEHOLDER');
+  await expect(dialog.getByRole('button', { name: 'Fechar' })).toBeVisible();
+});
+
+test('workflow steps navigate, focus their targets, and reflect completed current outputs', async ({ page }) => {
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.locator('input[type="file"]').setInputFiles(path.join(testDir, 'fixtures', 'sample.csv'));
+
+  const tasksStep = page.getByTestId('workflow-step-tasks');
+  await expect(tasksStep).toContainText('Disponível');
+  await tasksStep.click();
+  await expect(page.getByRole('tab', { name: /Criar Tarefas/i })).toHaveAttribute('aria-selected', 'true');
+
+  await page.getByRole('button', { name: /Copiar JSON/i }).click();
+  await page.getByRole('button', { name: /Copiar tarefas/i }).click();
+  await expect(tasksStep).toContainText('Concluída');
+
+  await page.getByLabel('Projeto (project_id)').fill('334');
+  await expect(tasksStep).toContainText('Disponível');
+
+  const mapStep = page.getByTestId('workflow-step-map');
+  await mapStep.click();
+  await expect(page.locator('#cecis-mapping')).toBeFocused();
+  await page.getByTestId('cecis-response').fill([
+    'ID 291631 — Tarefa A — tracker: Desenvolvimento (5)',
+    'ID 291632 — Tarefa B — tracker: Desenvolvimento (5)',
+  ].join('\n'));
+  await page.getByRole('button', { name: 'Mapear IDs', exact: true }).click();
+  await expect(mapStep).toContainText('Concluída');
+
+  const copyStep = page.getByTestId('workflow-step-copy');
+  await expect(copyStep).toContainText('Disponível');
+  await copyStep.click();
+  await expect(page.locator('#time-entries-output')).toBeFocused();
+  await page.getByRole('button', { name: /Copiar JSON/i }).click();
+  await page.getByRole('button', { name: /Copiar lançamentos/i }).click();
+  await expect(copyStep).toContainText('Concluída');
+});
+
+test('destructive and sensitive downloads require confirmation', async ({ page }) => {
+  const csv = buildCsv([
+    row('2026-04-01', '8.000', 'Tarefa válida'),
+    'Usuario Teste\t102\tTarefa sem data\t"tag"\tdata-invalida\t2.000',
+  ]);
+  await page.locator('input[type="file"]').setInputFiles({
+    name: 'confirmations.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from(csv, 'utf8'),
+  });
+
+  await page.getByRole('button', { name: /Baixar inconsistências/i }).click();
+  await expect(page.getByRole('alertdialog', { name: /Baixar inconsistências do CSV/i })).toBeVisible();
+  await page.getByRole('button', { name: /Cancelar/i }).click();
+  await expect(page.getByText('Conferência do período')).toBeVisible();
+
+  await page.getByRole('button', { name: /Baixar inconsistências/i }).click();
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Baixar inconsistências', exact: true }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toMatch(/^inconsistencias-csv-/);
+
+  await page.getByRole('button', { name: /Limpar dados importados/i }).click();
+  await expect(page.getByRole('alertdialog', { name: /Limpar todos os dados importados/i })).toBeVisible();
+  await page.getByRole('button', { name: /Cancelar/i }).click();
+  await expect(page.getByText('Conferência do período')).toBeVisible();
+
+  await page.getByRole('button', { name: /Limpar dados importados/i }).click();
+  await page.getByRole('button', { name: 'Limpar dados', exact: true }).click();
+  await expect(page.getByText('Conferência do período')).toBeHidden();
+  await expect(page.getByText(/Envie o CSV para começar/i)).toBeVisible();
 });
 
 test('conference day cards stay compact and consistent on desktop', async ({ page }) => {
@@ -139,6 +218,14 @@ test('footer Sobre link navigates to features page and shows current version', a
 });
 
 test('theme switcher supports dark, light, and high contrast modes', async ({ page }) => {
+  for (const themeName of ['Escuro', 'Claro', 'Alto contraste']) {
+    const control = page.getByRole('button', { name: `Usar tema ${themeName}` });
+    const box = await control.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.width).toBeGreaterThanOrEqual(40);
+    expect(box!.height).toBeGreaterThanOrEqual(40);
+  }
+
   await page.getByRole('button', { name: /Usar tema Claro/i }).click();
   await expect(page.locator('html')).toHaveClass(/light/);
 
@@ -167,6 +254,7 @@ test('semantic status tokens meet readable contrast targets', async ({ page }) =
     const styles = getComputedStyle(document.documentElement);
     const token = (name: string) => styles.getPropertyValue(name).trim();
     return [
+      ['primary', token('--primary-foreground'), token('--primary')],
       ['success', token('--success'), token('--card')],
       ['warning', token('--warning'), token('--card')],
       ['danger', token('--danger'), token('--card')],
@@ -178,6 +266,34 @@ test('semantic status tokens meet readable contrast targets', async ({ page }) =
   for (const result of results) {
     expect.soft(result.value, `${result.name} contrast`).toBeGreaterThanOrEqual(4.5);
   }
+});
+
+test('light theme primary action keeps AA contrast at rest, hover, and focus', async ({ page }) => {
+  await page.getByRole('button', { name: /Usar tema Claro/i }).click();
+  await page.locator('input[type="file"]').setInputFiles(path.join(testDir, 'fixtures', 'sample.csv'));
+  await page.getByRole('tab', { name: /Registrar Tempo/i }).click();
+  const action = page.getByRole('button', { name: 'Mapear IDs', exact: true });
+
+  const contrast = async () => action.evaluate((element) => {
+    const parse = (value: string) => value.match(/[\d.]+/g)?.slice(0, 3).map(Number) ?? [0, 0, 0];
+    const luminance = (value: string) => {
+      const rgb = parse(value).map((channel) => {
+        const normalized = channel / 255;
+        return normalized <= 0.03928 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2];
+    };
+    const styles = getComputedStyle(element);
+    const values = [luminance(styles.color), luminance(styles.backgroundColor)].sort((a, b) => b - a);
+    return (values[0] + 0.05) / (values[1] + 0.05);
+  });
+
+  expect(await contrast()).toBeGreaterThanOrEqual(4.5);
+  await action.hover();
+  await page.waitForTimeout(250);
+  expect(await contrast()).toBeGreaterThanOrEqual(4.5);
+  await action.focus();
+  expect(await contrast()).toBeGreaterThanOrEqual(4.5);
 });
 
 test('upload CSV and show full report flow', async ({ page }) => {
@@ -265,7 +381,7 @@ test('time entries tab maps Cecis issue ids and generates the manual array JSON 
     'ID 291631 — Maestro-Refinamentos S2-Abr — tracker: Análise e Refinamento (12)',
     'ID 291632 — Maestro-Ritos (Daily, Planning, Review e Retro) S2-Abr — tracker: Reuniões (21)',
   ].join('\n'));
-  await page.getByRole('button', { name: /Mapear IDs/i }).click();
+  await page.getByRole('button', { name: 'Mapear IDs', exact: true }).click();
 
   await expect(page.getByText('issue_id 291631')).toBeVisible();
   await expect(page.getByText('issue_id 291632')).toBeVisible();
@@ -314,7 +430,7 @@ test('time entries JSON excludes tasks that were not mapped by Cecis', async ({ 
 
   await page.getByRole('tab', { name: /Registrar Tempo/i }).click();
   await page.getByTestId('cecis-response').fill('ID 291700 — Tarefa Mapeada — tracker: Manutenção (5)');
-  await page.getByRole('button', { name: /Mapear IDs/i }).click();
+  await page.getByRole('button', { name: 'Mapear IDs', exact: true }).click();
 
   await expect(page.getByText(/Pendentes de issue_id: Tarefa Pendente/i)).toBeVisible();
 
@@ -409,6 +525,21 @@ test('mobile layout keeps calendar and CSV modal within the viewport', async ({ 
 
   hasHorizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
   expect(hasHorizontalOverflow).toBe(false);
+});
+
+test('layout reflows at a viewport equivalent to 200 percent zoom', async ({ page }) => {
+  await page.setViewportSize({ width: 640, height: 720 });
+  await page.locator('input[type="file"]').setInputFiles(path.join(testDir, 'fixtures', 'sample.csv'));
+
+  for (const tabName of ['Conferência', 'Criar Tarefas', 'Registrar Tempo']) {
+    await page.getByRole('tab', { name: tabName }).click();
+    const hasHorizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
+    expect(hasHorizontalOverflow, `${tabName} should reflow without global horizontal scrolling`).toBe(false);
+  }
+
+  await page.getByRole('tab', { name: /Registrar Tempo/i }).click();
+  const helpFontSize = await page.locator('#cecis-response-help').evaluate((element) => parseFloat(getComputedStyle(element).fontSize));
+  expect(helpFontSize).toBeGreaterThanOrEqual(14);
 });
 
 test('partially invalid CSV shows ignored-line feedback', async ({ page }) => {

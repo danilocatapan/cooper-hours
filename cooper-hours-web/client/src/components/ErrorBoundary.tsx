@@ -1,7 +1,6 @@
 import { cn } from "@/lib/utils";
 import { AlertTriangle, RotateCcw } from "lucide-react";
 import { Component, ReactNode } from "react";
-import { LGPD_NOTICE } from "@/features/privacy/lgpd";
 
 const isDev = import.meta.env.DEV;
 
@@ -40,7 +39,7 @@ class ErrorBoundary extends Component<Props, State> {
               <pre className="whitespace-break-spaces text-sm text-muted-foreground">
                 {isDev
                   ? this.state.error?.stack
-                  : `Erro inesperado. Recarregue a página ou contate ${LGPD_NOTICE.contactChannel}.`}
+                  : "Erro inesperado. Recarregue a página para reiniciar esta sessão local."}
               </pre>
             </div>
 
@@ -49,7 +48,7 @@ class ErrorBoundary extends Component<Props, State> {
               className={cn(
                 "flex items-center gap-2 rounded-lg px-4 py-2",
                 "bg-primary text-primary-foreground",
-                "cursor-pointer hover:opacity-90"
+                "cursor-pointer hover:bg-primary/95"
               )}
             >
               <RotateCcw size={16} />

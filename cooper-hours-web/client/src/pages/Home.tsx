@@ -13,7 +13,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AppShell } from "@/design-system/components/AppShell";
 import { EmptyState } from "@/design-system/components/EmptyState";
-import { WorkflowStepper } from "@/design-system/components/WorkflowStepper";
+import { WorkflowStepper, type WorkflowStepId } from "@/design-system/components/WorkflowStepper";
 import {
   applyCecisIssuesToTaskConfigs,
   buildTasksJson,
@@ -47,6 +47,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [activeResultTab, setActiveResultTab] = useState("conference");
+  const [activeWorkflowStep, setActiveWorkflowStep] = useState<WorkflowStepId>("conference");
   const [taskDefaults, setTaskDefaults] = useState<TaskDefaults>(DEFAULT_TASKS);
   const [copiedTarget, setCopiedTarget] = useState<CopiedTarget>(null);
   const [taskConfigs, setTaskConfigs] = useState<Record<string, TaskConfig>>({});
@@ -55,6 +56,8 @@ export default function Home() {
   const [liveMessage, setLiveMessage] = useState("");
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [pendingSensitiveAction, setPendingSensitiveAction] = useState<SensitiveActionKind | null>(null);
+  const [lastCopiedTasksJson, setLastCopiedTasksJson] = useState<string | null>(null);
+  const [lastCopiedTimeEntriesJson, setLastCopiedTimeEntriesJson] = useState<string | null>(null);
 
   const logoSrc = `${import.meta.env.BASE_URL}assets/coopersystem-logo.svg`;
   const reportStats = useMemo(() => getReportStats(report), [report]);
@@ -82,6 +85,8 @@ export default function Home() {
   const pendingTimeEntryTitles = useMemo(() => getPendingTimeEntryTitles(timeEntries), [timeEntries]);
   const conflictTaskTitles = useMemo(() => getConflictTaskTitles(cecisResponseText, uniqueTaskTitles), [cecisResponseText, uniqueTaskTitles]);
   const timeEntriesJsonText = useMemo(() => JSON.stringify(readyTimeEntries, null, 2), [readyTimeEntries]);
+  const tasksCopied = lastCopiedTasksJson !== null && lastCopiedTasksJson === tasksJsonText;
+  const timeEntriesCopied = lastCopiedTimeEntriesJson !== null && lastCopiedTimeEntriesJson === timeEntriesJsonText;
   const selectedSummary = report?.dailySummaries.find((summary) => summary.date === selectedDate) ?? report?.dailySummaries[0];
   const summaryByDate = useMemo(() => {
     return new Map(report?.dailySummaries.map((summary) => [summary.date, summary]) ?? []);
@@ -92,8 +97,8 @@ export default function Home() {
 
   const processFile = (file: File) => {
     if (!privacyAcknowledged) {
-      setError("Confirme a ciência sobre privacidade antes de importar um arquivo.");
-      setLiveMessage("Importação bloqueada até a confirmação do Aviso de Privacidade.");
+      setError("Confirme que você entendeu o processamento local antes de importar um arquivo.");
+      setLiveMessage("Importação bloqueada até a confirmação sobre processamento local.");
       return;
     }
 
@@ -101,6 +106,8 @@ export default function Home() {
     setError(null);
     setIsDragging(false);
     setCopiedTarget(null);
+    setLastCopiedTasksJson(null);
+    setLastCopiedTimeEntriesJson(null);
     setCecisResponseText("");
     setSelectedFileName(file.name);
 
@@ -121,6 +128,7 @@ export default function Home() {
           ?? null
         );
         setActiveResultTab("conference");
+        setActiveWorkflowStep("conference");
         setTaskDefaults({
           ...DEFAULT_TASKS,
           startDate: processedReport.minImportedDate,
@@ -158,8 +166,8 @@ export default function Home() {
 
     if (!privacyAcknowledged) {
       setIsDragging(false);
-      setError("Confirme a ciência sobre privacidade antes de importar um arquivo.");
-      setLiveMessage("Importação por arrastar e soltar bloqueada até a confirmação de privacidade.");
+      setError("Confirme que você entendeu o processamento local antes de importar um arquivo.");
+      setLiveMessage("Importação por arrastar e soltar bloqueada até a confirmação sobre processamento local.");
       return;
     }
 
@@ -201,7 +209,10 @@ export default function Home() {
     setCecisResponseText("");
     setTaskDefaults(DEFAULT_TASKS);
     setActiveResultTab("conference");
+    setActiveWorkflowStep("conference");
     setSelectedFileName(null);
+    setLastCopiedTasksJson(null);
+    setLastCopiedTimeEntriesJson(null);
     setLiveMessage("Dados importados removidos desta sessão do navegador.");
   };
 
@@ -209,6 +220,8 @@ export default function Home() {
     try {
       await navigator.clipboard.writeText(jsonText);
       setCopiedTarget(target);
+      if (target === "tasks") setLastCopiedTasksJson(jsonText);
+      if (target === "time") setLastCopiedTimeEntriesJson(jsonText);
       setLiveMessage(target === "tasks" ? "JSON de tarefas copiado." : "JSON de lançamentos copiado.");
       window.setTimeout(() => setCopiedTarget(null), 1800);
     } catch (_error) {
@@ -274,6 +287,27 @@ export default function Home() {
     setPendingSensitiveAction(action);
   };
 
+  const handleResultTabChange = (tab: string) => {
+    setActiveResultTab(tab);
+    setActiveWorkflowStep(
+      tab === "conference" ? "conference" : tab === "tasks" ? "tasks" : pendingTimeEntryTitles.length > 0 || conflictTaskTitles.length > 0 ? "map" : "copy"
+    );
+  };
+
+  const handleWorkflowStepSelect = (step: WorkflowStepId) => {
+    setActiveWorkflowStep(step);
+    const tab = step === "conference" ? "conference" : step === "tasks" ? "tasks" : "time";
+    setActiveResultTab(tab);
+
+    if (step === "map" || step === "copy") {
+      window.setTimeout(() => {
+        const target = document.getElementById(step === "map" ? "cecis-mapping" : "time-entries-output");
+        target?.focus();
+        target?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 0);
+    }
+  };
+
   const confirmSensitiveAction = () => {
     const action = pendingSensitiveAction;
     setPendingSensitiveAction(null);
@@ -290,6 +324,16 @@ export default function Home() {
 
     if (action === "downloadReport") {
       downloadReportCsv();
+      return;
+    }
+
+    if (action === "downloadCsvIssues") {
+      downloadCsvIssues();
+      return;
+    }
+
+    if (action === "clearImportedData") {
+      clearImportedData();
     }
   };
 
@@ -312,8 +356,8 @@ export default function Home() {
             onDrop={handleDrop}
             onFileUpload={handleFileUpload}
             onPrivacyAcknowledgedChange={setPrivacyAcknowledged}
-            onClearImportedData={clearImportedData}
-            onDownloadCsvIssues={downloadCsvIssues}
+            onClearImportedData={() => requestSensitiveAction("clearImportedData")}
+            onDownloadCsvIssues={() => requestSensitiveAction("downloadCsvIssues")}
           />
         </div>
 
@@ -321,15 +365,19 @@ export default function Home() {
           {report && reportStats ? (
             <div className="space-y-6">
               <WorkflowStepper
+                activeStep={activeWorkflowStep}
                 completeDays={reportStats.completeDays}
                 businessDayCount={report.businessDayCount}
                 taskCount={uniqueTaskTitles.length}
+                tasksCopied={tasksCopied}
                 mappedTimeEntries={readyTimeEntries.length}
                 totalTimeEntries={timeEntries.length}
                 blockerCount={pendingTimeEntryTitles.length + conflictTaskTitles.length}
+                timeEntriesCopied={timeEntriesCopied}
+                onStepSelect={handleWorkflowStepSelect}
               />
 
-              <Tabs value={activeResultTab} onValueChange={setActiveResultTab} className="space-y-6">
+              <Tabs value={activeResultTab} onValueChange={handleResultTabChange} className="space-y-6">
                 <TabsList className="h-auto w-full justify-start overflow-x-auto rounded-lg border border-border bg-card p-1">
                   <TabsTrigger value="conference" className="flex-none px-3 py-2">
                     <CheckCircle2 className="h-4 w-4" />
@@ -422,6 +470,16 @@ const sensitiveActionContent: Record<SensitiveActionKind, { title: string; descr
     title: "Baixar relatório CSV?",
     description: "O arquivo baixado pode conter dados pessoais do CSV importado e ficará disponível neste dispositivo. Compartilhe apenas com pessoas e sistemas autorizados.",
     confirmLabel: "Baixar relatório",
+  },
+  downloadCsvIssues: {
+    title: "Baixar inconsistências do CSV?",
+    description: "O arquivo pode conter datas, horas e detalhes derivados do CSV importado. Confirme que ele ficará somente em um dispositivo e destino autorizados.",
+    confirmLabel: "Baixar inconsistências",
+  },
+  clearImportedData: {
+    title: "Limpar todos os dados importados?",
+    description: "O relatório, as configurações de tarefas, os IDs mapeados e a resposta da Cecis serão removidos desta sessão. Esta ação não pode ser desfeita.",
+    confirmLabel: "Limpar dados",
   },
 };
 

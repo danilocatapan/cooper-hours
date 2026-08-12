@@ -33,24 +33,25 @@ export function PrivacyNoticeDialog() {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button type="button" variant="ghost" size="sm" className="h-auto px-2 py-1 text-xs text-selection">
+        <Button type="button" variant="ghost" size="sm" className="h-auto px-2 py-1 text-sm text-selection">
           <ShieldCheck className="h-3.5 w-3.5" />
-          Aviso de Privacidade
+          Privacidade e processamento local
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[calc(100vh-2rem)] overflow-y-auto border-border bg-card p-0 sm:max-w-3xl">
         <DialogHeader className="border-b border-border px-5 py-4 pr-12 text-left sm:px-6 sm:pr-14">
-          <DialogTitle>Aviso de Privacidade LGPD</DialogTitle>
+          <DialogTitle>Privacidade e processamento local</DialogTitle>
           <DialogDescription>
-            Informações essenciais sobre o tratamento local dos dados no fluxo manual.
+            Entenda como o arquivo permanece neste navegador durante o fluxo manual.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-5 px-5 pb-5 text-sm sm:px-6 sm:pb-6">
           <section className="rounded-lg border border-selection/30 bg-selection/10 p-4">
-            <p className="font-semibold text-foreground">Controlador</p>
-            <p className="mt-2 text-muted-foreground">
-              {LGPD_NOTICE.controllerName}. Canal de atendimento: {LGPD_NOTICE.contactChannel}. Encarregado/DPO: {LGPD_NOTICE.dpoContact}.
+            <p className="font-semibold text-foreground">Contexto do projeto</p>
+            <p className="mt-2 leading-6 text-muted-foreground">{LGPD_NOTICE.projectContext}</p>
+            <p className="mt-2 leading-6 text-muted-foreground">
+              Este aviso descreve apenas o comportamento técnico desta aplicação e não substitui orientações institucionais.
             </p>
           </section>
 
@@ -70,18 +71,8 @@ export function PrivacyNoticeDialog() {
             </p>
           </section>
 
-          <section className="rounded-lg border border-border bg-surface-subtle p-4">
-            <p className="font-semibold text-foreground">Direitos do titular</p>
-            <p className="mt-2 leading-6 text-muted-foreground">
-              Você pode solicitar confirmação de tratamento, acesso, correção, anonimização,
-              bloqueio, eliminação, portabilidade, informações sobre compartilhamento e revogação
-              de consentimento, quando aplicável, pelo canal {LGPD_NOTICE.contactChannel}.
-            </p>
-          </section>
-
-          <p className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-xs leading-5 text-foreground">
-            Este texto usa placeholders e deve ser revisado por [PLACEHOLDER_RESPONSAVEL_JURIDICO]
-            antes de uso institucional.
+          <p className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm leading-6 text-foreground">
+            {LGPD_NOTICE.userResponsibility}
           </p>
         </div>
       </DialogContent>

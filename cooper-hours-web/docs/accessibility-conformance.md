@@ -16,5 +16,5 @@ Alvo do projeto: WCAG 2.2 AA para a experiência principal do validador Cooper H
 ## Limitações conhecidas
 
 - A aplicação processa CSV localmente, mas cópias para clipboard e downloads passam a ser responsabilidade do usuário após confirmação.
-- Contatos jurídicos e de DPO permanecem como placeholders até revisão institucional.
+- O projeto é demonstrativo e independente; não publica dados institucionais, controlador ou contato de DPO.
 - Auditorias automatizadas não substituem teste com leitor de tela real.

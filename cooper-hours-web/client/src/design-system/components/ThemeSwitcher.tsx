@@ -21,9 +21,9 @@ export function ThemeSwitcher() {
           key={value}
           type="button"
           variant="ghost"
-          size="icon-sm"
+          size="icon-lg"
           className={cn(
-            "rounded-md text-muted-foreground hover:text-foreground",
+            "rounded-md text-muted-foreground hover:bg-surface-subtle hover:text-foreground",
             theme === value && "bg-surface-raised text-foreground shadow-sm"
           )}
           aria-label={`Usar tema ${label}`}

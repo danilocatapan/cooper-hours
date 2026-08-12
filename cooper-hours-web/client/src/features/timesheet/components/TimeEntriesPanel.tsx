@@ -62,16 +62,17 @@ export function TimeEntriesPanel({
 
   return (
     <div className="space-y-6">
-      <SectionCard
-        title={(
-          <span className="flex items-center gap-2">
-            <Clock3 className="h-5 w-5 text-primary" />
-            Registrar tempo
-          </span>
-        )}
-        description="Cole a resposta da Cecis para preencher os issue_id e gerar o JSON final de horas."
-        contentClassName="space-y-5"
-      >
+      <div id="cecis-mapping" tabIndex={-1} className="scroll-mt-4 rounded-lg focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45">
+        <SectionCard
+          title={(
+            <span className="flex items-center gap-2">
+              <Clock3 className="h-5 w-5 text-primary" />
+              Registrar tempo
+            </span>
+          )}
+          description="Cole a resposta da Cecis para preencher os issue_id e gerar o JSON final de horas."
+          contentClassName="space-y-5"
+        >
         <div className="space-y-2">
           <Label htmlFor="cecis-response">Resposta da Cecis com as issues criadas</Label>
           <Textarea
@@ -83,9 +84,13 @@ export function TimeEntriesPanel({
             aria-describedby="cecis-response-help"
             className="min-h-32"
           />
-          <p id="cecis-response-help" className="text-xs leading-5 text-muted-foreground">
-            A resposta deve conter cada ID seguido do título da tarefa. O sistema só copia lançamentos com issue_id reconhecido.
+          <p id="cecis-response-help" className="text-sm leading-6 text-muted-foreground">
+            A resposta deve conter cada ID seguido do título da tarefa. Como alternativa, você pode preencher o issue_id manualmente na etapa “Criar tarefas”. O sistema só copia lançamentos com ID reconhecido.
           </p>
+          <details className="rounded-md border border-border bg-card p-3 text-sm text-muted-foreground">
+            <summary className="cursor-pointer font-semibold text-foreground">Exemplo de resposta da Cecis</summary>
+            <p className="mt-2 break-words font-mono text-sm">ID 291631 — Título da tarefa — tracker: Desenvolvimento (5)</p>
+          </details>
           <Button type="button" size="sm" onClick={onApplyCecisResponse}>
             <Link2 className="h-4 w-4" />
             Mapear IDs
@@ -127,7 +132,7 @@ export function TimeEntriesPanel({
                 <div key={title} className="flex flex-col gap-2 rounded-lg border border-border bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-foreground">{title}</p>
-                    <p className="text-xs text-muted-foreground">Atividade <span className="font-mono">activity_id {config.activityId}</span></p>
+                    <p className="text-sm text-muted-foreground">Atividade <span className="font-mono">activity_id {config.activityId}</span></p>
                   </div>
                   <Badge className={hasConflict ? "border-danger/30 bg-danger/10 text-foreground" : isMapped ? "border-success/30 bg-success/10 text-foreground" : "border-warning/40 bg-warning/10 text-foreground"}>
                     {hasConflict ? "conflito" : isMapped ? `issue_id ${config.issueId}` : "pendente"}
@@ -137,18 +142,21 @@ export function TimeEntriesPanel({
             })}
           </div>
         </div>
-      </SectionCard>
+        </SectionCard>
+      </div>
 
-      <JsonPreview
-        title="JSON para Cecis - lançamentos"
-        description="Saída manual com issue_id, spent_on e activity_id."
-        value={timeEntriesJsonText}
-        copied={copied}
-        testId="time-entries-json"
-        validation={validation}
-        copyDisabled={!hasReadyEntries || hasConflicts}
-        onCopy={onCopyTimeEntries}
-      />
+      <div id="time-entries-output" tabIndex={-1} className="scroll-mt-4 rounded-lg focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45">
+        <JsonPreview
+          title="JSON para Cecis - lançamentos"
+          description="Saída manual com issue_id, spent_on e activity_id."
+          value={timeEntriesJsonText}
+          copied={copied}
+          testId="time-entries-json"
+          validation={validation}
+          copyDisabled={!hasReadyEntries || hasConflicts}
+          onCopy={onCopyTimeEntries}
+        />
+      </div>
     </div>
   );
 }

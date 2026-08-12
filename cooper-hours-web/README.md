@@ -6,7 +6,7 @@ Tudo funciona no navegador. O projeto não mantém servidor próprio, banco de d
 
 ## Fluxo de uso
 
-1. Marque a confirmação do Aviso de Privacidade.
+1. Confirme que entendeu o processamento local e que pode usar o arquivo escolhido.
 2. Importe o CSV exportado do Jira por clique ou arrastar e soltar.
 3. Confira o calendário, as horas diárias e as inconsistências encontradas.
 4. Na aba **Criar Tarefas**, revise os campos e copie o JSON para o processo manual.
@@ -17,6 +17,7 @@ O CSV aceita tabulação, ponto e vírgula ou vírgula como separador. O process
 
 ## Privacidade
 
+- O projeto é demonstrativo e independente; não representa uma política oficial da Coopersystem.
 - O conteúdo do CSV é processado somente na aba aberta.
 - Nenhum dado do arquivo é enviado pela aplicação.
 - Recarregar ou fechar a página remove os dados importados.

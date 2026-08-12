@@ -27,6 +27,13 @@ test("initial screen has no automated accessibility violations", async ({ page }
   await checkA11y(page);
 });
 
+test("light, dark, and high contrast themes have no automated accessibility violations", async ({ page }) => {
+  for (const themeName of ["Claro", "Escuro", "Alto contraste"]) {
+    await page.getByRole("button", { name: `Usar tema ${themeName}` }).click();
+    await checkA11y(page);
+  }
+});
+
 test("CSV format dialog has no automated accessibility violations", async ({ page }) => {
   await page.getByRole("button", { name: /Formato do arquivo/i }).click();
   await expect(page.getByRole("dialog", { name: /Formato do arquivo CSV/i })).toBeVisible();
@@ -34,7 +41,7 @@ test("CSV format dialog has no automated accessibility violations", async ({ pag
 });
 
 test("report, Cecis tabs and sensitive confirmation have no automated accessibility violations", async ({ page }) => {
-  await page.getByRole("checkbox", { name: /Li o Aviso de Privacidade/i }).click();
+  await page.getByRole("checkbox", { name: /Entendi o processamento local/i }).click();
   await page.locator('input[type="file"]').setInputFiles({
     name: "a11y.csv",
     mimeType: "text/csv",
@@ -59,8 +66,8 @@ test("report, Cecis tabs and sensitive confirmation have no automated accessibil
 });
 
 test("privacy dialog and 404 screen have no automated accessibility violations", async ({ page }) => {
-  await page.getByRole("button", { name: /Aviso de Privacidade/i }).click();
-  await expect(page.getByRole("dialog", { name: /Aviso de Privacidade LGPD/i })).toBeVisible();
+  await page.getByRole("button", { name: /Privacidade e processamento local/i }).click();
+  await expect(page.getByRole("dialog", { name: /Privacidade e processamento local/i })).toBeVisible();
   await checkA11y(page);
 
   await page.keyboard.press("Escape");

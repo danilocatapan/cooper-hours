@@ -60,9 +60,9 @@
 
 :root {
   --primary: #007A4D;
-  --primary-foreground: #1a1a1a;
+  --primary-foreground: #FFFFFF;
   --sidebar-primary: #007A4D;
-  --sidebar-primary-foreground: #1a1a1a;
+  --sidebar-primary-foreground: #FFFFFF;
   --chart-1: #B42318;
   --chart-2: #007A4D;
   --chart-3: #175CD3;
@@ -84,7 +84,7 @@
   --destructive: #B42318;
   --destructive-foreground: #ffffff;
   --success: #007A4D;
-  --success-foreground: #1a1a1a;
+  --success-foreground: #FFFFFF;
   --selection: #175CD3;
   --selection-foreground: #ffffff;
   --warning: #854A0E;
@@ -105,7 +105,7 @@
   --sidebar: #F7FAFC;
   --sidebar-foreground: #111827;
   --sidebar-accent: #007A4D;
-  --sidebar-accent-foreground: #1a1a1a;
+  --sidebar-accent-foreground: #FFFFFF;
   --sidebar-border: #CBD5E1;
   --sidebar-ring: #007A4D;
 }

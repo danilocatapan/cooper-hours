@@ -1,7 +1,6 @@
 export const LGPD_NOTICE = {
-  controllerName: "[PLACEHOLDER_NOME_EMPRESA]",
-  contactChannel: "[PLACEHOLDER_CANAIS_CONTATO]",
-  dpoContact: "[PLACEHOLDER_CONTATO_DPO]",
+  projectContext:
+    "Ferramenta demonstrativa e independente. Este projeto não representa uma política oficial da Coopersystem.",
   processingMode: "local-browser-only",
   dataCategories: [
     "nome do usuário",
@@ -17,8 +16,8 @@ export const LGPD_NOTICE = {
     "gerar JSONs para uso manual em sistemas internos",
     "permitir conferência pelo próprio usuário",
   ],
-  legalBasisSuggestion:
-    "definir conforme o contexto: execução de contrato, legítimo interesse, cumprimento de obrigação legal/regulatória ou consentimento quando aplicável",
+  userResponsibility:
+    "Use somente arquivos que você esteja autorizado a consultar e compartilhe relatórios ou JSONs apenas com destinos permitidos.",
 };
 
 export function sanitizeProcessingError(error: unknown): string {

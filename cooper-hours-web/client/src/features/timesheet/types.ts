@@ -95,4 +95,9 @@ export type DailyStatus = "complete" | "underTarget" | "overTarget";
 export type LegacyDailyStatus = "pending" | "over";
 export type TimesheetStatus = DailyStatus | LegacyDailyStatus | "missing" | "optional" | "holiday" | "invalid" | "neutral";
 
-export type SensitiveActionKind = "copyTasks" | "copyTimeEntries" | "downloadReport";
+export type SensitiveActionKind =
+  | "copyTasks"
+  | "copyTimeEntries"
+  | "downloadReport"
+  | "downloadCsvIssues"
+  | "clearImportedData";
