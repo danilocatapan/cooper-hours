@@ -55,7 +55,7 @@ export function WorkflowStepper({
     {
       id: "tasks",
       label: "Criar tarefas",
-      detail: tasksCopied ? "JSON atual copiado" : `${taskCount} título(s) para revisar`,
+      detail: tasksCopied ? "Mensagem atual copiada" : `${taskCount} título(s) para revisar`,
       Icon: ClipboardList,
       state: tasksCopied ? "complete" : taskCount > 0 ? "available" : "pending",
     },
@@ -68,15 +68,15 @@ export function WorkflowStepper({
     },
     {
       id: "copy",
-      label: "Copiar lançamentos",
-      detail: timeEntriesCopied ? "JSON atual copiado" : `${mappedTimeEntries}/${totalTimeEntries} pronto(s)`,
+      label: "Copiar mensagem",
+      detail: timeEntriesCopied ? "Mensagem atual copiada" : `${mappedTimeEntries}/${totalTimeEntries} pronto(s)`,
       Icon: ClipboardCheck,
       state: timeEntriesCopied ? "complete" : allEntriesMapped ? "available" : "pending",
     },
   ];
 
   return (
-    <nav aria-label="Etapas do fluxo CSV para Cecis" className="rounded-lg border border-border bg-card p-3">
+    <nav aria-label="Etapas do fluxo CSV para Cesis" className="rounded-lg border border-border bg-card p-3">
       <ol className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
         {steps.map(({ id, label, detail, Icon, state }, index) => {
           const active = activeStep === id;

@@ -5,18 +5,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { JsonPreview } from "@/design-system/components/JsonPreview";
+import { MessagePreview } from "@/design-system/components/MessagePreview";
 import { SectionCard } from "@/design-system/components/SectionCard";
 import { activityOptions, trackerOptions } from "../constants";
 import { getDefaultTaskConfig, normalizeTitle } from "../report";
-import type { TaskConfig, TaskDefaults } from "../types";
+import type { CecisMessageResult, TaskConfig, TaskDefaults } from "../types";
 
 interface TasksPanelProps {
   importedMonth: string;
   uniqueTaskTitles: string[];
   taskDefaults: TaskDefaults;
   taskConfigs: Record<string, TaskConfig>;
-  tasksJsonText: string;
+  tasksMessageResult: CecisMessageResult;
   copied: boolean;
   onTaskDefaultChange: (key: keyof TaskDefaults, value: string) => void;
   onTaskConfigChange: (title: string, key: keyof TaskConfig, value: string) => void;
@@ -28,7 +28,7 @@ export function TasksPanel({
   uniqueTaskTitles,
   taskDefaults,
   taskConfigs,
-  tasksJsonText,
+  tasksMessageResult,
   copied,
   onTaskDefaultChange,
   onTaskConfigChange,
@@ -67,7 +67,7 @@ export function TasksPanel({
               <p className="text-sm leading-6 text-muted-foreground">O nome amigável aparece primeiro; o campo da API fica entre parênteses.</p>
             </div>
             <details className="max-w-sm rounded-md border border-border bg-card p-3 text-sm text-muted-foreground">
-              <summary className="cursor-pointer font-semibold text-foreground">Termos Cecis</summary>
+              <summary className="cursor-pointer font-semibold text-foreground">Termos Cesis</summary>
               <p className="mt-2">Projeto identifica o produto, responsável recebe a tarefa, tipo define o fluxo e atividade classifica o lançamento de horas.</p>
             </details>
           </div>
@@ -123,7 +123,7 @@ export function TasksPanel({
                     <th scope="col" className="sticky left-0 bg-surface-subtle px-3 py-2">Assunto</th>
                     <th scope="col" className="px-3 py-2">Tipo</th>
                     <th scope="col" className="px-3 py-2">Atividade</th>
-                    <th scope="col" className="px-3 py-2">Issue pós-Cecis</th>
+                    <th scope="col" className="px-3 py-2">Issue pós-Cesis</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -165,7 +165,7 @@ export function TasksPanel({
                     <TaskSelect title={title} label="Atividade" field="activityId" value={taskConfigs[title]?.activityId ?? getDefaultTaskConfig(title).activityId} options={activityOptions} onTaskConfigChange={onTaskConfigChange} />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor={`issue-${normalizeTitle(title)}`} className="text-sm font-semibold text-muted-foreground">Issue pós-Cecis <span className="font-mono font-normal">(issue_id)</span></Label>
+                    <Label htmlFor={`issue-${normalizeTitle(title)}`} className="text-sm font-semibold text-muted-foreground">Issue pós-Cesis <span className="font-mono font-normal">(issue_id)</span></Label>
                     <IssueInput id={`issue-${normalizeTitle(title)}`} title={title} value={taskConfigs[title]?.issueId ?? ""} onTaskConfigChange={onTaskConfigChange} />
                   </div>
                 </div>
@@ -174,24 +174,26 @@ export function TasksPanel({
           )}
 
           <p className="mt-4 rounded-lg border border-selection/30 bg-selection/10 p-3 text-sm leading-6 text-foreground">
-            O issue_id pode ser informado manualmente em cada tarefa ou preenchido em lote na etapa “Mapear IDs” ao colar a resposta da Cecis.
+            O issue_id pode ser informado manualmente em cada tarefa ou preenchido em lote na etapa “Mapear IDs” ao colar a resposta da Cesis.
           </p>
         </section>
       </SectionCard>
 
-      <JsonPreview
+      <MessagePreview
         className="border-surface-border"
-        title="JSON para Cecis"
-        description="Saída para criar tarefas, preservando o contrato exato do Cecis."
-        value={tasksJsonText}
+        title="Mensagem para o Cesis — tarefas"
+        description="Instruções de pré-validação, prevenção de duplicidade e payload para criação em lote."
+        value={tasksMessageResult.message}
         copied={copied}
-        testId="tasks-json"
+        testId="tasks-message"
         validation={{
-          tone: uniqueTaskTitles.length > 0 ? "ready" : "blocked",
-          title: uniqueTaskTitles.length > 0 ? "Pronto para copiar" : "Sem tarefas para copiar",
-          description: uniqueTaskTitles.length > 0 ? `${uniqueTaskTitles.length} tarefa(s) serão enviadas no contrato de criação em lote.` : "Importe um CSV com títulos válidos antes de copiar.",
+          tone: tasksMessageResult.canCopy ? "ready" : "blocked",
+          title: tasksMessageResult.canCopy ? "Pronto para copiar" : "Corrija os dados antes de copiar",
+          description: tasksMessageResult.canCopy
+            ? `${uniqueTaskTitles.length} tarefa(s) serão pré-validadas antes de qualquer escrita no Redmine.`
+            : tasksMessageResult.errors.join(" "),
         }}
-        copyDisabled={uniqueTaskTitles.length === 0}
+        copyDisabled={!tasksMessageResult.canCopy}
         onCopy={onCopyTasks}
       />
     </div>
@@ -261,12 +263,12 @@ function IssueInput({
   value: string;
   onTaskConfigChange: (title: string, key: keyof TaskConfig, value: string) => void;
 }) {
-  const invalid = Boolean(value) && !/^\d+$/.test(value);
+  const invalid = Boolean(value) && (!/^\d+$/.test(value) || Number(value) <= 0);
   return (
     <>
       <Input
         id={id}
-        aria-label={id ? undefined : `Issue pós-Cecis de ${title}`}
+        aria-label={id ? undefined : `Issue pós-Cesis de ${title}`}
         aria-invalid={invalid}
         inputMode="numeric"
         placeholder="Opcional"

@@ -200,8 +200,8 @@ export function UploadPanel({
           <ol className="mt-3 list-decimal space-y-2 pl-5 leading-6 text-muted-foreground">
             <li>Exporte no BusinessMap um CSV com Título, Data e Tempo registrado soma.</li>
             <li>Confira os dias e revise os dados usados para criar as tarefas.</li>
-            <li>Copie o JSON de tarefas para o fluxo manual da Cecis.</li>
-            <li>Cole a resposta com os IDs criados e copie os lançamentos finais.</li>
+            <li>Copie a mensagem completa de tarefas para o fluxo manual da Cesis.</li>
+            <li>Cole a resposta com os IDs criados ou reutilizados e copie a mensagem final de horas.</li>
           </ol>
         </details>
 

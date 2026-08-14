@@ -9,8 +9,8 @@ Tudo funciona no navegador. O projeto não mantém servidor próprio, banco de d
 1. Confirme que entendeu o processamento local e que pode usar o arquivo escolhido.
 2. Importe o CSV exportado do Jira por clique ou arrastar e soltar.
 3. Confira o calendário, as horas diárias e as inconsistências encontradas.
-4. Na aba **Criar Tarefas**, revise os campos e copie o JSON para o processo manual.
-5. Cole a resposta da Cecis na aba **Registrar Tempo**, mapeie os `issue_id` e copie o JSON final.
+4. Na aba **Criar Tarefas**, revise os campos e copie a mensagem operacional completa para a Cesis. Ela inclui as regras de pré-validação, prevenção de duplicidade e o payload JSON.
+5. Cole a resposta da Cesis na aba **Registrar Tempo**, mapeie os `issue_id` e copie a mensagem final de horas. A cópia só é liberada quando todos os lançamentos estão mapeados e sem conflitos.
 6. Se precisar, baixe o relatório CSV para conferência ou arquivamento.
 
 O CSV aceita tabulação, ponto e vírgula ou vírgula como separador. O processamento identifica automaticamente o formato, ignora duplicatas exatas e apresenta erros de forma legível.
@@ -22,7 +22,7 @@ O CSV aceita tabulação, ponto e vírgula ou vírgula como separador. O process
 - Nenhum dado do arquivo é enviado pela aplicação.
 - Recarregar ou fechar a página remove os dados importados.
 - Somente a preferência de tema pode permanecer salva no navegador.
-- Cópias de JSON e downloads acontecem apenas após confirmação explícita do usuário.
+- Cópias de mensagens e downloads acontecem apenas após confirmação explícita do usuário.
 
 ## Desenvolvimento
 
@@ -56,7 +56,7 @@ pnpm run test:a11y
 pnpm run build
 ```
 
-Os testes cobrem upload por clique e arrastar e soltar, CSV inválido, múltiplos dias, estados abaixo/com/acima de 8h, geração dos JSONs, acessibilidade e layout mobile.
+Os testes cobrem upload por clique e arrastar e soltar, CSV inválido, múltiplos dias, estados abaixo/com/acima de 8h, geração das mensagens para a Cesis, prevenção de duplicidade, acessibilidade e layout mobile.
 
 ## Publicação
 

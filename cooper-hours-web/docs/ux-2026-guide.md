@@ -12,7 +12,7 @@
 
 - Upload: botão real, suporte a arrastar e soltar, nome do arquivo e feedback por `aria-live`.
 - Calendário: navegação por setas com foco único e detalhe diário controlado pela seleção.
-- Tarefas Cecis: selects com nome + ID e inputs manuais apenas onde o contrato exige.
+- Tarefas Cesis: selects com nome + ID e inputs manuais apenas onde o contrato exige.
 - Inconsistências CSV: filtro por tipo, recomendação de correção e exportação separada.
 - Tema: claro, escuro e alto contraste, com `prefers-reduced-motion` respeitado.
 

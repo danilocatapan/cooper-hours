@@ -82,6 +82,22 @@ export interface ParsedIssue {
   title: string;
 }
 
+export interface CecisMessageResult {
+  message: string;
+  errors: string[];
+  canCopy: boolean;
+}
+
+export interface CecisResponseDiagnostics {
+  parsedIssues: ParsedIssue[];
+  conflictTaskTitles: string[];
+  unknownTitles: string[];
+  manualIssueConflictTitles: string[];
+  recognizedIssueCount: number;
+}
+
+export type TimeEntryPayload = Omit<TimeEntryDraft, "title">;
+
 export interface TimeEntryDraft {
   issue_id: number;
   hours: number;

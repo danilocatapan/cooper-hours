@@ -10,7 +10,7 @@ Design system mínimo para manter a interface operacional consistente sem criar 
 - `warning`: horas acima da meta, pendências revisáveis e alertas não bloqueantes.
 - `danger`: dias ausentes, dados inválidos e conflitos que exigem correção.
 - `surface-*`: superfícies internas, painéis elevados e bordas de seção.
-- `code`: blocos técnicos como prévias de JSON.
+- `code`: blocos técnicos como prévias de mensagens e payloads JSON.
 
 ## Componentes
 
@@ -18,7 +18,7 @@ Design system mínimo para manter a interface operacional consistente sem criar 
 - `SectionCard`: cartão padrão para seções operacionais.
 - `MetricCard`: indicador numérico com status semântico.
 - `StatusBadge`: rótulo visual para estados do timesheet.
-- `JsonPreview`: prévia técnica com ação de copiar.
+- `MessagePreview`: prévia técnica de mensagens operacionais com ação de copiar.
 - `EmptyState`: estado inicial antes do upload.
 
 ## Regras de Uso
