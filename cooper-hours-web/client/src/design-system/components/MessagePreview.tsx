@@ -21,9 +21,10 @@ interface MessagePreviewProps {
   validation?: MessagePreviewValidation;
   copyDisabled?: boolean;
   privacyNotice?: string;
+  copyLabel?: string;
 }
 
-export function MessagePreview({ title, description, value, copied, testId, onCopy, className, validation, copyDisabled, privacyNotice }: MessagePreviewProps) {
+export function MessagePreview({ title, description, value, copied, testId, onCopy, className, validation, copyDisabled, privacyNotice, copyLabel = "Copiar mensagem" }: MessagePreviewProps) {
   const ValidationIcon = validation?.tone === "ready" ? CheckCircle2 : AlertCircle;
 
   return (
@@ -39,7 +40,7 @@ export function MessagePreview({ title, description, value, copied, testId, onCo
       action={(
         <Button type="button" variant="outline" size="sm" onClick={onCopy} disabled={copyDisabled}>
           <Copy className="h-4 w-4" />
-          {copied ? "Copiado" : "Copiar mensagem"}
+          {copied ? "Copiado" : copyLabel}
         </Button>
       )}
       contentClassName="pt-0 sm:pt-0"

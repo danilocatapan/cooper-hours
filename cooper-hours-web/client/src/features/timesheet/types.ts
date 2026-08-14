@@ -23,7 +23,13 @@ export interface CsvIssue {
   suggestion: string;
 }
 
-export type CanonicalCsvField = "user" | "cardId" | "title" | "labels" | "date" | "timeTotal";
+export type CanonicalCsvField =
+  | "user"
+  | "cardId"
+  | "title"
+  | "labels"
+  | "date"
+  | "timeTotal";
 
 export interface CsvHeaderAlias {
   field: CanonicalCsvField;
@@ -38,7 +44,12 @@ export interface CsvHeaderRecognition {
   required: boolean;
 }
 
-export type CsvIssueType = "missing-fields" | "invalid-date" | "missing-title" | "invalid-hours" | "parse-failure";
+export type CsvIssueType =
+  | "missing-fields"
+  | "invalid-date"
+  | "missing-title"
+  | "invalid-hours"
+  | "parse-failure";
 
 export interface TimesheetReport {
   dailySummaries: DailySummary[];
@@ -109,11 +120,16 @@ export interface TimeEntryDraft {
 
 export type DailyStatus = "complete" | "underTarget" | "overTarget";
 export type LegacyDailyStatus = "pending" | "over";
-export type TimesheetStatus = DailyStatus | LegacyDailyStatus | "missing" | "optional" | "holiday" | "invalid" | "neutral";
+export type TimesheetStatus =
+  | DailyStatus
+  | LegacyDailyStatus
+  | "missing"
+  | "optional"
+  | "holiday"
+  | "invalid"
+  | "neutral";
 
 export type SensitiveActionKind =
-  | "copyTasks"
-  | "copyTimeEntries"
   | "downloadReport"
   | "downloadCsvIssues"
   | "clearImportedData";

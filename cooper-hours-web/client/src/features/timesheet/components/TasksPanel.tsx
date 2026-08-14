@@ -54,10 +54,10 @@ export function TasksPanel({
         title={(
           <span className="flex items-center gap-2">
             <ClipboardList className="h-5 w-5 text-primary" />
-            Criar tarefas
+            Preparar tarefas
           </span>
         )}
-        description="Uma tarefa por título único do CSV, mantendo exatamente o contrato de criação em lote."
+        description="Revise os dados e prepare uma tarefa por título único do CSV, sem criar nada automaticamente."
         contentClassName="space-y-6"
       >
         <section className="rounded-lg border border-surface-border bg-surface-subtle p-4">
@@ -67,8 +67,8 @@ export function TasksPanel({
               <p className="text-sm leading-6 text-muted-foreground">O nome amigável aparece primeiro; o campo da API fica entre parênteses.</p>
             </div>
             <details className="max-w-sm rounded-md border border-border bg-card p-3 text-sm text-muted-foreground">
-              <summary className="cursor-pointer font-semibold text-foreground">Termos Cesis</summary>
-              <p className="mt-2">Projeto identifica o produto, responsável recebe a tarefa, tipo define o fluxo e atividade classifica o lançamento de horas.</p>
+              <summary className="cursor-pointer font-semibold text-foreground">Termos da Cesis</summary>
+              <p className="mt-2">A Cesis é o fluxo manual autorizado que recebe estas mensagens. Projeto identifica o produto, responsável recebe a tarefa, tipo define o fluxo e atividade classifica o lançamento de horas.</p>
             </details>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -123,7 +123,7 @@ export function TasksPanel({
                     <th scope="col" className="sticky left-0 bg-surface-subtle px-3 py-2">Assunto</th>
                     <th scope="col" className="px-3 py-2">Tipo</th>
                     <th scope="col" className="px-3 py-2">Atividade</th>
-                    <th scope="col" className="px-3 py-2">Issue pós-Cesis</th>
+                    <th scope="col" className="px-3 py-2">ID da tarefa na Cesis</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -161,11 +161,11 @@ export function TasksPanel({
                     <TaskSelect title={title} label="Tipo" field="trackerId" value={taskConfigs[title]?.trackerId ?? getDefaultTaskConfig(title).trackerId} options={trackerOptions} onTaskConfigChange={onTaskConfigChange} />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-muted-foreground">Atividade <span className="font-mono font-normal">(activity_id)</span></Label>
+                    <Label className="text-sm font-semibold text-muted-foreground">Categoria de atividade <span className="font-mono font-normal">(activity_id)</span></Label>
                     <TaskSelect title={title} label="Atividade" field="activityId" value={taskConfigs[title]?.activityId ?? getDefaultTaskConfig(title).activityId} options={activityOptions} onTaskConfigChange={onTaskConfigChange} />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor={`issue-${normalizeTitle(title)}`} className="text-sm font-semibold text-muted-foreground">Issue pós-Cesis <span className="font-mono font-normal">(issue_id)</span></Label>
+                    <Label htmlFor={`issue-${normalizeTitle(title)}`} className="text-sm font-semibold text-muted-foreground">ID da tarefa na Cesis <span className="font-mono font-normal">(issue_id)</span></Label>
                     <IssueInput id={`issue-${normalizeTitle(title)}`} title={title} value={taskConfigs[title]?.issueId ?? ""} onTaskConfigChange={onTaskConfigChange} />
                   </div>
                 </div>
@@ -174,15 +174,15 @@ export function TasksPanel({
           )}
 
           <p className="mt-4 rounded-lg border border-selection/30 bg-selection/10 p-3 text-sm leading-6 text-foreground">
-            O issue_id pode ser informado manualmente em cada tarefa ou preenchido em lote na etapa “Mapear IDs” ao colar a resposta da Cesis.
+            O ID da tarefa na Cesis (issue_id) pode ser informado manualmente ou preenchido em lote na etapa “Mapear IDs” ao colar a resposta da Cesis.
           </p>
         </section>
       </SectionCard>
 
       <MessagePreview
         className="border-surface-border"
-        title="Mensagem para o Cesis — tarefas"
-        description="Instruções de pré-validação, prevenção de duplicidade e payload para criação em lote."
+        title="Tarefas para a Cesis"
+        description="Mensagem preparada para o fluxo manual, com pré-validação, prevenção de duplicidade e payload de criação em lote."
         value={tasksMessageResult.message}
         copied={copied}
         testId="tasks-message"
@@ -194,6 +194,7 @@ export function TasksPanel({
             : tasksMessageResult.errors.join(" "),
         }}
         copyDisabled={!tasksMessageResult.canCopy}
+        copyLabel="Copiar tarefas"
         onCopy={onCopyTasks}
       />
     </div>
@@ -268,7 +269,7 @@ function IssueInput({
     <>
       <Input
         id={id}
-        aria-label={id ? undefined : `Issue pós-Cesis de ${title}`}
+        aria-label={id ? undefined : `ID da tarefa na Cesis para ${title}`}
         aria-invalid={invalid}
         inputMode="numeric"
         placeholder="Opcional"

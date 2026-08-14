@@ -40,7 +40,11 @@ test("CSV format dialog has no automated accessibility violations", async ({ pag
   await checkA11y(page);
 });
 
-test("report, Cesis tabs and sensitive confirmation have no automated accessibility violations", async ({ page }) => {
+test("report, Cesis steps and direct copy have no automated accessibility violations", async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.getByRole("checkbox", { name: /Entendi o processamento local/i }).click();
   await page.locator('input[type="file"]').setInputFiles({
     name: "a11y.csv",
@@ -51,16 +55,15 @@ test("report, Cesis tabs and sensitive confirmation have no automated accessibil
   await expect(page.getByText("Conferência do período")).toBeVisible();
   await checkA11y(page);
 
-  await page.getByRole("tab", { name: /Criar Tarefas/i }).click();
+  await page.getByTestId("workflow-step-tasks").click();
   await expect(page.getByTestId("tasks-message")).toBeVisible();
   await checkA11y(page);
 
-  await page.getByRole("button", { name: "Copiar mensagem", exact: true }).click();
-  await expect(page.getByRole("alertdialog", { name: /Copiar mensagem de tarefas/i })).toBeVisible();
+  await page.getByRole("button", { name: "Copiar tarefas", exact: true }).click();
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
   await checkA11y(page);
-  await page.getByRole("button", { name: /Cancelar/i }).click();
 
-  await page.getByRole("tab", { name: /Registrar Tempo/i }).click();
+  await page.getByTestId("workflow-step-map").click();
   await expect(page.getByTestId("time-entries-message")).toBeVisible();
   await checkA11y(page);
 });

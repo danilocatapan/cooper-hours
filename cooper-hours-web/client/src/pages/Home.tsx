@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type DragEvent } from "react";
-import { CheckCircle2, ClipboardList, Clock3 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -10,7 +9,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AppShell } from "@/design-system/components/AppShell";
 import { EmptyState } from "@/design-system/components/EmptyState";
 import { WorkflowStepper, type WorkflowStepId } from "@/design-system/components/WorkflowStepper";
@@ -47,7 +45,6 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [activeResultTab, setActiveResultTab] = useState("conference");
   const [activeWorkflowStep, setActiveWorkflowStep] = useState<WorkflowStepId>("conference");
   const [taskDefaults, setTaskDefaults] = useState<TaskDefaults>(DEFAULT_TASKS);
   const [copiedTarget, setCopiedTarget] = useState<CopiedTarget>(null);
@@ -139,7 +136,6 @@ export default function Home() {
           ?? processedReport.dailySummaries[0]?.date
           ?? null
         );
-        setActiveResultTab("conference");
         setActiveWorkflowStep("conference");
         setTaskDefaults({
           ...DEFAULT_TASKS,
@@ -226,7 +222,6 @@ export default function Home() {
     setTaskConfigs({});
     setCecisResponseText("");
     setTaskDefaults(DEFAULT_TASKS);
-    setActiveResultTab("conference");
     setActiveWorkflowStep("conference");
     setSelectedFileName(null);
     setLastCopiedTasksMessage(null);
@@ -305,40 +300,26 @@ export default function Home() {
     setPendingSensitiveAction(action);
   };
 
-  const handleResultTabChange = (tab: string) => {
-    setActiveResultTab(tab);
-    setActiveWorkflowStep(
-      tab === "conference" ? "conference" : tab === "tasks" ? "tasks" : pendingTimeEntryTitles.length > 0 || conflictTaskTitles.length > 0 ? "map" : "copy"
-    );
-  };
-
   const handleWorkflowStepSelect = (step: WorkflowStepId) => {
     setActiveWorkflowStep(step);
-    const tab = step === "conference" ? "conference" : step === "tasks" ? "tasks" : "time";
-    setActiveResultTab(tab);
-
-    if (step === "map" || step === "copy") {
-      window.setTimeout(() => {
-        const target = document.getElementById(step === "map" ? "cecis-mapping" : "time-entries-output");
-        target?.focus();
-        target?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 0);
-    }
+    window.setTimeout(() => {
+      const targetId: Record<WorkflowStepId, string> = {
+        conference: "conference-panel",
+        tasks: "tasks-panel",
+        map: "cecis-mapping",
+        copy: "time-entries-output",
+      };
+      const target = document.getElementById(targetId[step]);
+      target?.focus();
+      target?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 0);
   };
+
+  const continueToConference = () => handleWorkflowStepSelect("conference");
 
   const confirmSensitiveAction = () => {
     const action = pendingSensitiveAction;
     setPendingSensitiveAction(null);
-
-    if (action === "copyTasks") {
-      void copyMessage(tasksMessageResult.message, "tasks");
-      return;
-    }
-
-    if (action === "copyTimeEntries") {
-      void copyMessage(timeEntriesMessageResult.message, "time");
-      return;
-    }
 
     if (action === "downloadReport") {
       downloadReportCsv();
@@ -376,6 +357,7 @@ export default function Home() {
             onPrivacyAcknowledgedChange={setPrivacyAcknowledged}
             onClearImportedData={() => requestSensitiveAction("clearImportedData")}
             onDownloadCsvIssues={() => requestSensitiveAction("downloadCsvIssues")}
+            onContinueToConference={continueToConference}
           />
         </div>
 
@@ -395,23 +377,8 @@ export default function Home() {
                 onStepSelect={handleWorkflowStepSelect}
               />
 
-              <Tabs value={activeResultTab} onValueChange={handleResultTabChange} className="space-y-6">
-                <TabsList className="h-auto w-full justify-start overflow-x-auto rounded-lg border border-border bg-card p-1">
-                  <TabsTrigger value="conference" className="flex-none px-3 py-2">
-                    <CheckCircle2 className="h-4 w-4" />
-                    Conferência
-                  </TabsTrigger>
-                  <TabsTrigger value="tasks" className="flex-none px-3 py-2">
-                    <ClipboardList className="h-4 w-4" />
-                    Criar Tarefas
-                  </TabsTrigger>
-                  <TabsTrigger value="time" className="flex-none px-3 py-2">
-                    <Clock3 className="h-4 w-4" />
-                    Registrar Tempo
-                  </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="conference">
+              {activeWorkflowStep === "conference" && (
+                <div id="conference-panel" tabIndex={-1} className="scroll-mt-4 rounded-lg focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45">
                   <ConferencePanel
                     report={report}
                     reportStats={reportStats}
@@ -421,9 +388,11 @@ export default function Home() {
                     onSelectDate={setSelectedDate}
                     onDownloadReportCsv={() => requestSensitiveAction("downloadReport")}
                   />
-                </TabsContent>
+                </div>
+              )}
 
-                <TabsContent value="tasks">
+              {activeWorkflowStep === "tasks" && (
+                <div id="tasks-panel" tabIndex={-1} className="scroll-mt-4 rounded-lg focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45">
                   <TasksPanel
                     importedMonth={report.importedMonth}
                     uniqueTaskTitles={uniqueTaskTitles}
@@ -433,11 +402,12 @@ export default function Home() {
                     copied={copiedTarget === "tasks"}
                     onTaskDefaultChange={updateTaskDefault}
                     onTaskConfigChange={updateTaskConfig}
-                    onCopyTasks={() => requestSensitiveAction("copyTasks")}
+                    onCopyTasks={() => void copyMessage(tasksMessageResult.message, "tasks")}
                   />
-                </TabsContent>
+                </div>
+              )}
 
-                <TabsContent value="time">
+              {(activeWorkflowStep === "map" || activeWorkflowStep === "copy") && (
                   <TimeEntriesPanel
                     uniqueTaskTitles={uniqueTaskTitles}
                     taskConfigs={taskConfigs}
@@ -449,13 +419,12 @@ export default function Home() {
                     responseDiagnostics={cecisResponseDiagnostics}
                     timeEntriesMessageResult={timeEntriesMessageResult}
                     copied={copiedTarget === "time"}
+                    completed={timeEntriesCopied && timeEntriesMessageResult.canCopy}
                     onCecisResponseChange={setCecisResponseText}
                     onApplyCecisResponse={applyCecisResponse}
-                    onCopyTimeEntries={() => requestSensitiveAction("copyTimeEntries")}
+                    onCopyTimeEntries={() => void copyMessage(timeEntriesMessageResult.message, "time")}
                   />
-                </TabsContent>
-
-              </Tabs>
+              )}
             </div>
           ) : (
             <EmptyState />
@@ -475,16 +444,6 @@ export default function Home() {
 }
 
 const sensitiveActionContent: Record<SensitiveActionKind, { title: string; description: string; confirmLabel: string }> = {
-  copyTasks: {
-    title: "Copiar mensagem de tarefas?",
-    description: "Este conteúdo pode conter títulos, datas e IDs derivados do CSV importado. Confirme que o destino é um sistema autorizado para esta finalidade.",
-    confirmLabel: "Copiar mensagem",
-  },
-  copyTimeEntries: {
-    title: "Copiar mensagem de lançamentos?",
-    description: "Este conteúdo pode conter issue_id, spent_on, horas e atividade. Confirme que a colagem será feita apenas em sistema autorizado.",
-    confirmLabel: "Copiar mensagem",
-  },
   downloadReport: {
     title: "Baixar relatório CSV?",
     description: "O arquivo baixado pode conter dados pessoais do CSV importado e ficará disponível neste dispositivo. Compartilhe apenas com pessoas e sistemas autorizados.",

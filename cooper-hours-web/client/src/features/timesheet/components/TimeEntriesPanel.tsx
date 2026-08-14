@@ -1,4 +1,4 @@
-import { AlertCircle, Clock3, Link2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Clock3, Link2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ interface TimeEntriesPanelProps {
   responseDiagnostics: CecisResponseDiagnostics;
   timeEntriesMessageResult: CecisMessageResult;
   copied: boolean;
+  completed: boolean;
   onCecisResponseChange: (value: string) => void;
   onApplyCecisResponse: () => void;
   onCopyTimeEntries: () => void;
@@ -37,6 +38,7 @@ export function TimeEntriesPanel({
   responseDiagnostics,
   timeEntriesMessageResult,
   copied,
+  completed,
   onCecisResponseChange,
   onApplyCecisResponse,
   onCopyTimeEntries,
@@ -47,7 +49,7 @@ export function TimeEntriesPanel({
     ? {
         tone: "ready" as const,
         title: "Pronto para copiar",
-        description: `${readyTimeEntriesLength} lançamento(s) agrupado(s) e pronto(s) para pré-validação no Redmine.`,
+        description: `${readyTimeEntriesLength} lançamento(s) agrupado(s), com IDs de tarefa e categoria de atividade, prontos para pré-validação no Redmine.`,
       }
     : {
         tone: "blocked" as const,
@@ -62,10 +64,10 @@ export function TimeEntriesPanel({
           title={(
             <span className="flex items-center gap-2">
               <Clock3 className="h-5 w-5 text-primary" />
-              Registrar tempo
+              Preparar lançamento
             </span>
           )}
-          description="Cole a resposta da Cesis para preencher os issue_id e gerar a mensagem final de horas."
+          description="Cole a resposta da Cesis para preencher os IDs das tarefas e preparar a mensagem final de horas."
           contentClassName="space-y-5"
         >
         <div className="space-y-2">
@@ -80,7 +82,7 @@ export function TimeEntriesPanel({
             className="min-h-32"
           />
           <p id="cecis-response-help" className="text-sm leading-6 text-muted-foreground">
-            A resposta deve conter cada ID seguido do título exato da tarefa. Como alternativa, você pode preencher o issue_id manualmente na etapa “Criar tarefas”. A mensagem de horas só pode ser copiada quando todos os IDs estiverem reconhecidos e sem conflitos.
+            A resposta deve conter cada ID seguido do título exato da tarefa. Como alternativa, você pode preencher o ID da tarefa na Cesis (issue_id) manualmente na etapa “Preparar tarefas”. A mensagem de horas só pode ser copiada quando todos os IDs estiverem reconhecidos e sem conflitos.
           </p>
           <details className="rounded-md border border-border bg-card p-3 text-sm text-muted-foreground">
             <summary className="cursor-pointer font-semibold text-foreground">Exemplo de resposta da Cesis</summary>
@@ -136,7 +138,7 @@ export function TimeEntriesPanel({
                 <div key={title} className="flex flex-col gap-2 rounded-lg border border-border bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-foreground">{title}</p>
-                    <p className="text-sm text-muted-foreground">Atividade <span className="font-mono">activity_id {config.activityId}</span></p>
+                    <p className="text-sm text-muted-foreground">Categoria de atividade <span className="font-mono">(activity_id {config.activityId})</span></p>
                   </div>
                   <Badge className={hasConflict ? "border-danger/30 bg-danger/10 text-foreground" : isMapped ? "border-success/30 bg-success/10 text-foreground" : "border-warning/40 bg-warning/10 text-foreground"}>
                     {hasConflict ? "conflito" : isMapped ? `issue_id ${config.issueId}` : "pendente"}
@@ -150,14 +152,23 @@ export function TimeEntriesPanel({
       </div>
 
       <div id="time-entries-output" tabIndex={-1} className="scroll-mt-4 rounded-lg focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45">
+        {completed && (
+          <Alert className="mb-6 border-success/30 bg-success/10 text-foreground" role="status">
+            <CheckCircle2 className="h-4 w-4 text-success" />
+            <AlertDescription>
+              <span className="font-semibold">Preparação concluída</span> — cole o lançamento final no fluxo autorizado da Cesis para concluir o registro de horas.
+            </AlertDescription>
+          </Alert>
+        )}
         <MessagePreview
-          title="Mensagem para o Cesis — lançamentos"
-          description="Instruções de conferência, agrupamento e prevenção de duplicidade com o payload de horas."
+          title="Lançamento final para a Cesis"
+          description="Mensagem preparada com instruções de conferência, agrupamento, prevenção de duplicidade e o payload de horas."
           value={timeEntriesMessageResult.message}
           copied={copied}
           testId="time-entries-message"
           validation={validation}
           copyDisabled={!timeEntriesMessageResult.canCopy}
+          copyLabel="Copiar lançamento final"
           onCopy={onCopyTimeEntries}
         />
       </div>

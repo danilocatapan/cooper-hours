@@ -13,10 +13,10 @@ O Cooper Hours busca atender WCAG 2.2 AA na experiência principal de importaç�
 ## Recursos disponíveis
 
 - Link para pular ao conteúdo principal.
-- Navegação por teclado no upload, abas, calendário e diálogos.
+- Navegação por teclado no upload, etapas do fluxo, calendário e diálogos.
 - Avisos por `aria-live` para processamento e ações relevantes.
 - Alto contraste e redução de movimento respeitada.
-- Confirmação antes de copiar ou baixar dados pessoais.
+- Aviso adjacente antes de copiar e confirmação antes de baixar dados pessoais.
 
 ## Contexto do projeto
 

@@ -23,8 +23,14 @@ export function AppShell({ logoSrc, children }: AppShellProps) {
             <div className="flex items-center gap-3">
               <img src={logoSrc} alt="Coopersystem" className="h-12" />
               <div>
-                <h1 className={textClass.pageTitle}>Validação diária de 8h</h1>
-                <p className="text-sm text-muted-foreground">BusinessMap - Coopersystem</p>
+                <h1 className={textClass.pageTitle}>
+                  Conferir e preparar lançamento de horas
+                </h1>
+                <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
+                  Valide seu CSV do BusinessMap e prepare as mensagens usadas no
+                  fluxo manual da Cesis. Nenhum lançamento é enviado
+                  automaticamente.
+                </p>
               </div>
             </div>
             <ThemeSwitcher />
@@ -32,12 +38,14 @@ export function AppShell({ logoSrc, children }: AppShellProps) {
         </div>
       </header>
 
-      <main id="main-content" className="container py-8">{children}</main>
+      <main id="main-content" className="container py-8">
+        {children}
+      </main>
 
       <footer className="mt-12 border-t border-border bg-card">
         <div className="container py-6 text-center text-sm text-muted-foreground space-y-2">
           <p>
-            Validação diária de 8h BusinessMap - Coopersystem
+            Cooper Hours — conferência e preparação de lançamentos
             <span className="font-semibold"> {appVersionLabel}</span>
           </p>
           <p className="mx-auto max-w-xl">
