@@ -4,11 +4,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { JsonPreview } from "@/design-system/components/JsonPreview";
+import { MessagePreview } from "@/design-system/components/MessagePreview";
 import { MetricCard } from "@/design-system/components/MetricCard";
 import { SectionCard } from "@/design-system/components/SectionCard";
 import { getDefaultTaskConfig, parseInteger } from "../report";
-import type { TaskConfig, TimeEntryDraft } from "../types";
+import type { CecisMessageResult, CecisResponseDiagnostics, TaskConfig, TimeEntryDraft } from "../types";
 
 interface TimeEntriesPanelProps {
   uniqueTaskTitles: string[];
@@ -18,7 +18,8 @@ interface TimeEntriesPanelProps {
   readyTimeEntriesLength: number;
   pendingTimeEntryTitles: string[];
   conflictTaskTitles: string[];
-  timeEntriesJsonText: string;
+  responseDiagnostics: CecisResponseDiagnostics;
+  timeEntriesMessageResult: CecisMessageResult;
   copied: boolean;
   onCecisResponseChange: (value: string) => void;
   onApplyCecisResponse: () => void;
@@ -33,7 +34,8 @@ export function TimeEntriesPanel({
   readyTimeEntriesLength,
   pendingTimeEntryTitles,
   conflictTaskTitles,
-  timeEntriesJsonText,
+  responseDiagnostics,
+  timeEntriesMessageResult,
   copied,
   onCecisResponseChange,
   onApplyCecisResponse,
@@ -41,24 +43,17 @@ export function TimeEntriesPanel({
 }: TimeEntriesPanelProps) {
   const hasConflicts = conflictTaskTitles.length > 0;
   const hasPending = pendingTimeEntryTitles.length > 0;
-  const hasReadyEntries = readyTimeEntriesLength > 0;
-  const validation = hasConflicts
+  const validation = timeEntriesMessageResult.canCopy
     ? {
-        tone: "blocked" as const,
-        title: "Conflito detectado",
-        description: `${conflictTaskTitles.length} tarefa(s) aparecem com conflito na resposta da Cecis. Resolva antes de copiar.`,
+        tone: "ready" as const,
+        title: "Pronto para copiar",
+        description: `${readyTimeEntriesLength} lançamento(s) agrupado(s) e pronto(s) para pré-validação no Redmine.`,
       }
-    : hasPending
-      ? {
-          tone: "warning" as const,
-          title: `${pendingTimeEntryTitles.length} tarefa(s) sem issue_id`,
-          description: `${readyTimeEntriesLength} lançamento(s) podem ser copiados agora; os pendentes ficam fora do JSON.`,
-        }
-      : {
-          tone: "ready" as const,
-          title: "Pronto para copiar",
-          description: `${readyTimeEntriesLength} lançamento(s) mapeados com issue_id e activity_id.`,
-        };
+    : {
+        tone: "blocked" as const,
+        title: hasConflicts ? "Conflito detectado" : hasPending ? "Mapeamento incompleto" : "Mensagem bloqueada",
+        description: timeEntriesMessageResult.errors.join(" "),
+      };
 
   return (
     <div className="space-y-6">
@@ -70,11 +65,11 @@ export function TimeEntriesPanel({
               Registrar tempo
             </span>
           )}
-          description="Cole a resposta da Cecis para preencher os issue_id e gerar o JSON final de horas."
+          description="Cole a resposta da Cesis para preencher os issue_id e gerar a mensagem final de horas."
           contentClassName="space-y-5"
         >
         <div className="space-y-2">
-          <Label htmlFor="cecis-response">Resposta da Cecis com as issues criadas</Label>
+          <Label htmlFor="cecis-response">Resposta da Cesis com as issues criadas ou reutilizadas</Label>
           <Textarea
             id="cecis-response"
             data-testid="cecis-response"
@@ -85,11 +80,11 @@ export function TimeEntriesPanel({
             className="min-h-32"
           />
           <p id="cecis-response-help" className="text-sm leading-6 text-muted-foreground">
-            A resposta deve conter cada ID seguido do título da tarefa. Como alternativa, você pode preencher o issue_id manualmente na etapa “Criar tarefas”. O sistema só copia lançamentos com ID reconhecido.
+            A resposta deve conter cada ID seguido do título exato da tarefa. Como alternativa, você pode preencher o issue_id manualmente na etapa “Criar tarefas”. A mensagem de horas só pode ser copiada quando todos os IDs estiverem reconhecidos e sem conflitos.
           </p>
           <details className="rounded-md border border-border bg-card p-3 text-sm text-muted-foreground">
-            <summary className="cursor-pointer font-semibold text-foreground">Exemplo de resposta da Cecis</summary>
-            <p className="mt-2 break-words font-mono text-sm">ID 291631 — Título da tarefa — tracker: Desenvolvimento (5)</p>
+            <summary className="cursor-pointer font-semibold text-foreground">Exemplo de resposta da Cesis</summary>
+            <p className="mt-2 break-words font-mono text-sm">ID 291631 — Título da tarefa — tracker: Desenvolvimento (5) — resultado: CRIADA</p>
           </details>
           <Button type="button" size="sm" onClick={onApplyCecisResponse}>
             <Link2 className="h-4 w-4" />
@@ -116,7 +111,16 @@ export function TimeEntriesPanel({
           <Alert className="border-danger/30 bg-danger/10 text-danger">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              Conflitos na resposta da Cecis: {conflictTaskTitles.join("; ")}
+              Conflitos na resposta da Cesis: {conflictTaskTitles.join("; ")}
+            </AlertDescription>
+          </Alert>
+        ) : null}
+
+        {responseDiagnostics.unknownTitles.length > 0 ? (
+          <Alert className="border-warning/40 bg-warning/10 text-warning">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Títulos não reconhecidos na resposta da Cesis: {responseDiagnostics.unknownTitles.join("; ")}
             </AlertDescription>
           </Alert>
         ) : null}
@@ -146,14 +150,14 @@ export function TimeEntriesPanel({
       </div>
 
       <div id="time-entries-output" tabIndex={-1} className="scroll-mt-4 rounded-lg focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45">
-        <JsonPreview
-          title="JSON para Cecis - lançamentos"
-          description="Saída manual com issue_id, spent_on e activity_id."
-          value={timeEntriesJsonText}
+        <MessagePreview
+          title="Mensagem para o Cesis — lançamentos"
+          description="Instruções de conferência, agrupamento e prevenção de duplicidade com o payload de horas."
+          value={timeEntriesMessageResult.message}
           copied={copied}
-          testId="time-entries-json"
+          testId="time-entries-message"
           validation={validation}
-          copyDisabled={!hasReadyEntries || hasConflicts}
+          copyDisabled={!timeEntriesMessageResult.canCopy}
           onCopy={onCopyTimeEntries}
         />
       </div>

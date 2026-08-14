@@ -21,7 +21,7 @@ export default function Features() {
                   "Grade mensal com 7 colunas, seleção por teclado, estados visuais e foco acessível.",
                   "Upload por dropzone com botão interno contido, suporte a teclado e nomes longos.",
                   "Modal de formato CSV ampliado em desktop, responsivo e sem overflow horizontal.",
-                  "Geração de JSON para criação de tarefas e lançamentos autorizados na Cecis.",
+                  "Geração de mensagens operacionais para criação de tarefas e lançamentos autorizados na Cesis.",
                   "Testes Playwright para proporção de cards, upload, modal, rota Sobre e versão.",
                 ].map((feature) => (
                   <div key={feature} className="rounded-lg border border-border bg-surface-subtle p-3 text-muted-foreground">

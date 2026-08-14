@@ -13,8 +13,10 @@ export function normalizeTitle(value: string): string {
 }
 
 export function parseInteger(value: string): number {
-  const n = parseInt(value, 10);
-  return Number.isFinite(n) ? n : 0;
+  const normalized = value.trim();
+  if (!/^\d+$/.test(normalized)) return 0;
+  const n = Number(normalized);
+  return Number.isSafeInteger(n) ? n : 0;
 }
 
 export function getDefaultTaskConfig(title: string): TaskConfig {

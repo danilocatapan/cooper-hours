@@ -16,8 +16,9 @@ import { EmptyState } from "@/design-system/components/EmptyState";
 import { WorkflowStepper, type WorkflowStepId } from "@/design-system/components/WorkflowStepper";
 import {
   applyCecisIssuesToTaskConfigs,
-  buildTasksJson,
-  getConflictTaskTitles,
+  buildTasksCecisMessage,
+  buildTimeEntriesCecisMessage,
+  getCecisResponseDiagnostics,
   getPendingTimeEntryTitles,
   getReadyTimeEntries,
 } from "@/features/timesheet/cecis";
@@ -56,8 +57,8 @@ export default function Home() {
   const [liveMessage, setLiveMessage] = useState("");
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [pendingSensitiveAction, setPendingSensitiveAction] = useState<SensitiveActionKind | null>(null);
-  const [lastCopiedTasksJson, setLastCopiedTasksJson] = useState<string | null>(null);
-  const [lastCopiedTimeEntriesJson, setLastCopiedTimeEntriesJson] = useState<string | null>(null);
+  const [lastCopiedTasksMessage, setLastCopiedTasksMessage] = useState<string | null>(null);
+  const [lastCopiedTimeEntriesMessage, setLastCopiedTimeEntriesMessage] = useState<string | null>(null);
 
   const logoSrc = `${import.meta.env.BASE_URL}assets/coopersystem-logo.svg`;
   const reportStats = useMemo(() => getReportStats(report), [report]);
@@ -73,8 +74,8 @@ export default function Home() {
     });
   }, [uniqueTaskTitles]);
 
-  const tasksJsonText = useMemo(() => {
-    return buildTasksJson(uniqueTaskTitles, taskDefaults, taskConfigs);
+  const tasksMessageResult = useMemo(() => {
+    return buildTasksCecisMessage(uniqueTaskTitles, taskDefaults, taskConfigs);
   }, [taskConfigs, taskDefaults, uniqueTaskTitles]);
 
   const timeEntries = useMemo(() => {
@@ -83,10 +84,21 @@ export default function Home() {
 
   const readyTimeEntries = useMemo(() => getReadyTimeEntries(timeEntries), [timeEntries]);
   const pendingTimeEntryTitles = useMemo(() => getPendingTimeEntryTitles(timeEntries), [timeEntries]);
-  const conflictTaskTitles = useMemo(() => getConflictTaskTitles(cecisResponseText, uniqueTaskTitles), [cecisResponseText, uniqueTaskTitles]);
-  const timeEntriesJsonText = useMemo(() => JSON.stringify(readyTimeEntries, null, 2), [readyTimeEntries]);
-  const tasksCopied = lastCopiedTasksJson !== null && lastCopiedTasksJson === tasksJsonText;
-  const timeEntriesCopied = lastCopiedTimeEntriesJson !== null && lastCopiedTimeEntriesJson === timeEntriesJsonText;
+  const cecisResponseDiagnostics = useMemo(
+    () => getCecisResponseDiagnostics(cecisResponseText, uniqueTaskTitles, taskConfigs),
+    [cecisResponseText, taskConfigs, uniqueTaskTitles]
+  );
+  const conflictTaskTitles = cecisResponseDiagnostics.conflictTaskTitles;
+  const timeEntriesMessageResult = useMemo(
+    () => buildTimeEntriesCecisMessage(timeEntries, conflictTaskTitles),
+    [conflictTaskTitles, timeEntries]
+  );
+  const mappedTimeEntriesLength = useMemo(
+    () => timeEntries.filter((entry) => entry.issue_id > 0 && entry.activity_id > 0).length,
+    [timeEntries]
+  );
+  const tasksCopied = lastCopiedTasksMessage !== null && lastCopiedTasksMessage === tasksMessageResult.message;
+  const timeEntriesCopied = lastCopiedTimeEntriesMessage !== null && lastCopiedTimeEntriesMessage === timeEntriesMessageResult.message;
   const selectedSummary = report?.dailySummaries.find((summary) => summary.date === selectedDate) ?? report?.dailySummaries[0];
   const summaryByDate = useMemo(() => {
     return new Map(report?.dailySummaries.map((summary) => [summary.date, summary]) ?? []);
@@ -106,8 +118,8 @@ export default function Home() {
     setError(null);
     setIsDragging(false);
     setCopiedTarget(null);
-    setLastCopiedTasksJson(null);
-    setLastCopiedTimeEntriesJson(null);
+    setLastCopiedTasksMessage(null);
+    setLastCopiedTimeEntriesMessage(null);
     setCecisResponseText("");
     setSelectedFileName(file.name);
 
@@ -196,7 +208,13 @@ export default function Home() {
 
   const applyCecisResponse = () => {
     setTaskConfigs((current) => applyCecisIssuesToTaskConfigs(cecisResponseText, uniqueTaskTitles, current));
-    setLiveMessage("Resposta da Cecis aplicada ao mapa de tarefas.");
+    if (cecisResponseDiagnostics.parsedIssues.length === 0) {
+      setLiveMessage("Nenhum ID de tarefa foi reconhecido na resposta da Cesis.");
+    } else if (conflictTaskTitles.length > 0) {
+      setLiveMessage(`Resposta da Cesis analisada com ${conflictTaskTitles.length} conflito(s). Mapeamentos conflitantes não foram aplicados.`);
+    } else {
+      setLiveMessage(`Resposta da Cesis aplicada: ${cecisResponseDiagnostics.recognizedIssueCount} tarefa(s) mapeada(s).`);
+    }
   };
 
   const clearImportedData = () => {
@@ -211,22 +229,22 @@ export default function Home() {
     setActiveResultTab("conference");
     setActiveWorkflowStep("conference");
     setSelectedFileName(null);
-    setLastCopiedTasksJson(null);
-    setLastCopiedTimeEntriesJson(null);
+    setLastCopiedTasksMessage(null);
+    setLastCopiedTimeEntriesMessage(null);
     setLiveMessage("Dados importados removidos desta sessão do navegador.");
   };
 
-  const copyJson = async (jsonText: string, target: Exclude<CopiedTarget, null>) => {
+  const copyMessage = async (messageText: string, target: Exclude<CopiedTarget, null>) => {
     try {
-      await navigator.clipboard.writeText(jsonText);
+      await navigator.clipboard.writeText(messageText);
       setCopiedTarget(target);
-      if (target === "tasks") setLastCopiedTasksJson(jsonText);
-      if (target === "time") setLastCopiedTimeEntriesJson(jsonText);
-      setLiveMessage(target === "tasks" ? "JSON de tarefas copiado." : "JSON de lançamentos copiado.");
+      if (target === "tasks") setLastCopiedTasksMessage(messageText);
+      if (target === "time") setLastCopiedTimeEntriesMessage(messageText);
+      setLiveMessage(target === "tasks" ? "Mensagem de tarefas copiada." : "Mensagem de lançamentos copiada.");
       window.setTimeout(() => setCopiedTarget(null), 1800);
     } catch (_error) {
-      setError("Não foi possível copiar o JSON. Verifique as permissões da área de transferência.");
-      setLiveMessage("Não foi possível copiar o JSON. Verifique as permissões da área de transferência.");
+      setError("Não foi possível copiar a mensagem. Verifique as permissões da área de transferência.");
+      setLiveMessage("Não foi possível copiar a mensagem. Verifique as permissões da área de transferência.");
     }
   };
 
@@ -313,12 +331,12 @@ export default function Home() {
     setPendingSensitiveAction(null);
 
     if (action === "copyTasks") {
-      void copyJson(tasksJsonText, "tasks");
+      void copyMessage(tasksMessageResult.message, "tasks");
       return;
     }
 
     if (action === "copyTimeEntries") {
-      void copyJson(timeEntriesJsonText, "time");
+      void copyMessage(timeEntriesMessageResult.message, "time");
       return;
     }
 
@@ -370,7 +388,7 @@ export default function Home() {
                 businessDayCount={report.businessDayCount}
                 taskCount={uniqueTaskTitles.length}
                 tasksCopied={tasksCopied}
-                mappedTimeEntries={readyTimeEntries.length}
+                mappedTimeEntries={mappedTimeEntriesLength}
                 totalTimeEntries={timeEntries.length}
                 blockerCount={pendingTimeEntryTitles.length + conflictTaskTitles.length}
                 timeEntriesCopied={timeEntriesCopied}
@@ -411,7 +429,7 @@ export default function Home() {
                     uniqueTaskTitles={uniqueTaskTitles}
                     taskDefaults={taskDefaults}
                     taskConfigs={taskConfigs}
-                    tasksJsonText={tasksJsonText}
+                    tasksMessageResult={tasksMessageResult}
                     copied={copiedTarget === "tasks"}
                     onTaskDefaultChange={updateTaskDefault}
                     onTaskConfigChange={updateTaskConfig}
@@ -428,7 +446,8 @@ export default function Home() {
                     readyTimeEntriesLength={readyTimeEntries.length}
                     pendingTimeEntryTitles={pendingTimeEntryTitles}
                     conflictTaskTitles={conflictTaskTitles}
-                    timeEntriesJsonText={timeEntriesJsonText}
+                    responseDiagnostics={cecisResponseDiagnostics}
+                    timeEntriesMessageResult={timeEntriesMessageResult}
                     copied={copiedTarget === "time"}
                     onCecisResponseChange={setCecisResponseText}
                     onApplyCecisResponse={applyCecisResponse}
@@ -457,14 +476,14 @@ export default function Home() {
 
 const sensitiveActionContent: Record<SensitiveActionKind, { title: string; description: string; confirmLabel: string }> = {
   copyTasks: {
-    title: "Copiar JSON de tarefas?",
+    title: "Copiar mensagem de tarefas?",
     description: "Este conteúdo pode conter títulos, datas e IDs derivados do CSV importado. Confirme que o destino é um sistema autorizado para esta finalidade.",
-    confirmLabel: "Copiar tarefas",
+    confirmLabel: "Copiar mensagem",
   },
   copyTimeEntries: {
-    title: "Copiar JSON de lançamentos?",
+    title: "Copiar mensagem de lançamentos?",
     description: "Este conteúdo pode conter issue_id, spent_on, horas e atividade. Confirme que a colagem será feita apenas em sistema autorizado.",
-    confirmLabel: "Copiar lançamentos",
+    confirmLabel: "Copiar mensagem",
   },
   downloadReport: {
     title: "Baixar relatório CSV?",
@@ -478,7 +497,7 @@ const sensitiveActionContent: Record<SensitiveActionKind, { title: string; descr
   },
   clearImportedData: {
     title: "Limpar todos os dados importados?",
-    description: "O relatório, as configurações de tarefas, os IDs mapeados e a resposta da Cecis serão removidos desta sessão. Esta ação não pode ser desfeita.",
+    description: "O relatório, as configurações de tarefas, os IDs mapeados e a resposta da Cesis serão removidos desta sessão. Esta ação não pode ser desfeita.",
     confirmLabel: "Limpar dados",
   },
 };

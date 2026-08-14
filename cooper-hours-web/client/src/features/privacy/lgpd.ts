@@ -9,15 +9,15 @@ export const LGPD_NOTICE = {
     "datas",
     "horas",
     "etiquetas",
-    "respostas coladas da Cecis",
+    "respostas coladas da Cesis",
   ],
   purposes: [
     "validar lançamentos de horas",
-    "gerar JSONs para uso manual em sistemas internos",
+    "gerar mensagens operacionais para uso manual em sistemas internos",
     "permitir conferência pelo próprio usuário",
   ],
   userResponsibility:
-    "Use somente arquivos que você esteja autorizado a consultar e compartilhe relatórios ou JSONs apenas com destinos permitidos.",
+    "Use somente arquivos que você esteja autorizado a consultar e compartilhe relatórios ou mensagens apenas com destinos permitidos.",
 };
 
 export function sanitizeProcessingError(error: unknown): string {

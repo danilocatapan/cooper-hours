@@ -40,7 +40,7 @@ test("CSV format dialog has no automated accessibility violations", async ({ pag
   await checkA11y(page);
 });
 
-test("report, Cecis tabs and sensitive confirmation have no automated accessibility violations", async ({ page }) => {
+test("report, Cesis tabs and sensitive confirmation have no automated accessibility violations", async ({ page }) => {
   await page.getByRole("checkbox", { name: /Entendi o processamento local/i }).click();
   await page.locator('input[type="file"]').setInputFiles({
     name: "a11y.csv",
@@ -52,16 +52,16 @@ test("report, Cecis tabs and sensitive confirmation have no automated accessibil
   await checkA11y(page);
 
   await page.getByRole("tab", { name: /Criar Tarefas/i }).click();
-  await expect(page.getByTestId("tasks-json")).toBeVisible();
+  await expect(page.getByTestId("tasks-message")).toBeVisible();
   await checkA11y(page);
 
-  await page.getByRole("button", { name: /Copiar JSON/i }).click();
-  await expect(page.getByRole("alertdialog", { name: /Copiar JSON de tarefas/i })).toBeVisible();
+  await page.getByRole("button", { name: "Copiar mensagem", exact: true }).click();
+  await expect(page.getByRole("alertdialog", { name: /Copiar mensagem de tarefas/i })).toBeVisible();
   await checkA11y(page);
   await page.getByRole("button", { name: /Cancelar/i }).click();
 
   await page.getByRole("tab", { name: /Registrar Tempo/i }).click();
-  await expect(page.getByTestId("time-entries-json")).toBeVisible();
+  await expect(page.getByTestId("time-entries-message")).toBeVisible();
   await checkA11y(page);
 });
 

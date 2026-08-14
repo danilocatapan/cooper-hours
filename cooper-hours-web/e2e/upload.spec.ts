@@ -21,6 +21,12 @@ const buildCsv = (rows: string[]) => [
 const row = (date: string, hours: string, title = `Tarefa ${date}`) =>
   `Usuario Teste\t${date.replaceAll('-', '')}\t${title}\t"tag"\t${date}\t${hours}`;
 
+function parsePayloadFromMessage(message: string | null): unknown {
+  const match = message?.match(/INÍCIO DO PAYLOAD JSON\s*([\s\S]*?)\s*FIM DO PAYLOAD JSON/);
+  expect(match, 'a mensagem deve conter um payload JSON delimitado').not.toBeNull();
+  return JSON.parse(match![1]);
+}
+
 test('initial screen is usable and free of legacy debug hooks', async ({ page }) => {
   await expect(page.getByRole('heading', { name: /validação diária de 8h/i })).toBeVisible();
   await expect(page.getByText('Validar lançamento diário de 8h')).toBeVisible();
@@ -76,9 +82,9 @@ test('upload control is keyboard accessible and exposes workflow progress', asyn
   await chooser.setFiles(filePath);
 
   await expect(page.getByText('Arquivo analisado com sucesso')).toBeVisible({ timeout: 5000 });
-  await expect(page.getByRole('navigation', { name: /Etapas do fluxo CSV para Cecis/i })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: /Etapas do fluxo CSV para Cesis/i })).toBeVisible();
   await expect(page.getByTestId('workflow-step-conference')).toContainText('Conferir');
-  await expect(page.getByTestId('workflow-step-copy')).toContainText('Copiar lançamentos');
+  await expect(page.getByTestId('workflow-step-copy')).toContainText('Copiar mensagem');
 });
 
 test('privacy notice is demonstrative, local, and free of institutional placeholders', async ({ page }) => {
@@ -101,8 +107,9 @@ test('workflow steps navigate, focus their targets, and reflect completed curren
   await tasksStep.click();
   await expect(page.getByRole('tab', { name: /Criar Tarefas/i })).toHaveAttribute('aria-selected', 'true');
 
-  await page.getByRole('button', { name: /Copiar JSON/i }).click();
-  await page.getByRole('button', { name: /Copiar tarefas/i }).click();
+  await page.getByRole('button', { name: 'Copiar mensagem', exact: true }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Copiar mensagem', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toContain('Crie ou reutilize para mim, no Redmine');
   await expect(tasksStep).toContainText('Concluída');
 
   await page.getByLabel('Projeto (project_id)').fill('334');
@@ -122,8 +129,9 @@ test('workflow steps navigate, focus their targets, and reflect completed curren
   await expect(copyStep).toContainText('Disponível');
   await copyStep.click();
   await expect(page.locator('#time-entries-output')).toBeFocused();
-  await page.getByRole('button', { name: /Copiar JSON/i }).click();
-  await page.getByRole('button', { name: /Copiar lançamentos/i }).click();
+  await page.getByRole('button', { name: 'Copiar mensagem', exact: true }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Copiar mensagem', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toContain('Agora registre no Redmine as horas');
   await expect(copyStep).toContainText('Concluída');
 });
 
@@ -313,7 +321,7 @@ test('upload CSV and show full report flow', async ({ page }) => {
   await expect(page.getByRole('button', { name: /01\/04\/2026/i })).toBeVisible();
 });
 
-test('create tasks tab generates the exact batch JSON contract', async ({ page }) => {
+test('create tasks tab generates the complete Cesis message with the exact batch JSON contract', async ({ page }) => {
   const csv = buildCsv([
     'Usuario Teste\t893566\tTarefa API\t"tag"\t2026-04-01\t5.000',
     'Usuario Teste\t987589\tTarefa UI\t"tag"\t2026-04-15\t3.000',
@@ -328,8 +336,11 @@ test('create tasks tab generates the exact batch JSON contract', async ({ page }
   await expect(page.getByRole('tab', { name: /Criar Tarefas/i })).toBeVisible();
   await page.getByRole('tab', { name: /Criar Tarefas/i }).click();
 
-  const jsonText = await page.getByTestId('tasks-json').textContent();
-  const json = JSON.parse(jsonText || '');
+  const messageText = await page.getByTestId('tasks-message').textContent();
+  expect(messageText).toContain('Crie ou reutilize para mim, no Redmine');
+  expect(messageText).toContain('bloqueie o lote inteiro');
+  expect(messageText).toContain('resultado: CRIADA|REUTILIZADA');
+  const json = parsePayloadFromMessage(messageText) as { action: string; tasks: Array<Record<string, unknown>> };
 
   expect(Object.keys(json)).toEqual(['action', 'tasks']);
   expect(json.action).toBe('create_tasks_batch');
@@ -358,7 +369,7 @@ test('create tasks tab generates the exact batch JSON contract', async ({ page }
   expect(json.tasks.map((task: { subject: string }) => task.subject).sort()).toEqual(['Tarefa API', 'Tarefa UI']);
 });
 
-test('time entries tab maps Cecis issue ids and generates the manual array JSON contract', async ({ page }) => {
+test('time entries tab maps Cesis issue ids and generates the complete grouped-hours message', async ({ page }) => {
   const csv = buildCsv([
     'Usuario Teste\t893566\tMaestro-Refinamentos S2-Abr\t"tag"\t2026-04-14\t2.000',
     'Usuario Teste\t987589\tMaestro-Ritos (Daily, Planning, Review e Retro) S2-Abr\t"tag"\t2026-04-15\t6.000',
@@ -374,7 +385,8 @@ test('time entries tab maps Cecis issue ids and generates the manual array JSON 
   await page.getByRole('tab', { name: /Registrar Tempo/i }).click();
 
   await expect(page.getByText('tarefa(s) pendente(s)')).toBeVisible();
-  await expect(page.getByTestId('time-entries-json')).toHaveText(/\[\]/);
+  await expect(page.getByText(/Mapeie issue_id e activity_id de todas as tarefas/i)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Copiar mensagem', exact: true })).toBeDisabled();
 
   await page.getByTestId('cecis-response').fill([
     'Tarefas criadas com sucesso — 2 issues:',
@@ -386,8 +398,10 @@ test('time entries tab maps Cecis issue ids and generates the manual array JSON 
   await expect(page.getByText('issue_id 291631')).toBeVisible();
   await expect(page.getByText('issue_id 291632')).toBeVisible();
 
-  const jsonText = await page.getByTestId('time-entries-json').textContent();
-  const json = JSON.parse(jsonText || '');
+  const messageText = await page.getByTestId('time-entries-message').textContent();
+  expect(messageText).toContain('tolerância de 0,01 hora');
+  expect(messageText).toContain('IGNORADO_DUPLICADO');
+  const json = parsePayloadFromMessage(messageText) as Array<Record<string, unknown>>;
 
   expect(Array.isArray(json)).toBeTruthy();
   expect(json).toHaveLength(2);
@@ -416,7 +430,7 @@ test('time entries tab maps Cecis issue ids and generates the manual array JSON 
   ]));
 });
 
-test('time entries JSON excludes tasks that were not mapped by Cecis', async ({ page }) => {
+test('time entries message blocks copying while any Cesis mapping is pending', async ({ page }) => {
   const csv = buildCsv([
     'Usuario Teste\t893566\tTarefa Mapeada\t"tag"\t2026-04-14\t2.000',
     'Usuario Teste\t987589\tTarefa Pendente\t"tag"\t2026-04-15\t6.000',
@@ -434,8 +448,8 @@ test('time entries JSON excludes tasks that were not mapped by Cecis', async ({ 
 
   await expect(page.getByText(/Pendentes de issue_id: Tarefa Pendente/i)).toBeVisible();
 
-  const jsonText = await page.getByTestId('time-entries-json').textContent();
-  const json = JSON.parse(jsonText || '');
+  const messageText = await page.getByTestId('time-entries-message').textContent();
+  const json = parsePayloadFromMessage(messageText) as Array<Record<string, unknown>>;
 
   expect(json).toEqual([{
     issue_id: 291700,
@@ -444,6 +458,109 @@ test('time entries JSON excludes tasks that were not mapped by Cecis', async ({ 
     activity_id: 9,
     comments: '',
   }]);
+  await expect(page.getByRole('button', { name: 'Copiar mensagem', exact: true })).toBeDisabled();
+});
+
+test('time entries with the same issue, date and activity are grouped before copying', async ({ page }) => {
+  const csv = buildCsv([
+    'Usuario Teste\t1001\tTarefa Agrupada\t"tag"\t2026-04-14\t2.000',
+    'Usuario Teste\t1002\tTarefa Agrupada\t"tag"\t2026-04-14\t3.000',
+  ]);
+
+  await page.locator('input[type="file"]').setInputFiles({
+    name: 'grouped-hours.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from(csv, 'utf8'),
+  });
+  await page.getByRole('tab', { name: /Registrar Tempo/i }).click();
+  await page.getByTestId('cecis-response').fill('ID 291800 — Tarefa Agrupada — tracker: Desenvolvimento (4) — resultado: REUTILIZADA');
+  await page.getByRole('button', { name: 'Mapear IDs', exact: true }).click();
+
+  const messageText = await page.getByTestId('time-entries-message').textContent();
+  const payload = parsePayloadFromMessage(messageText);
+  expect(payload).toEqual([{
+    issue_id: 291800,
+    hours: 5,
+    spent_on: '2026-04-14',
+    activity_id: 9,
+    comments: '',
+  }]);
+  await expect(page.getByRole('button', { name: 'Copiar mensagem', exact: true })).toBeEnabled();
+});
+
+test('task message blocks invalid identifiers, date ranges and normalized title collisions', async ({ page }) => {
+  const invalidCsv = buildCsv([
+    'Usuario Teste\t2001\tTarefa Válida\t"tag"\t2026-04-14\t8.000',
+  ]);
+  await page.locator('input[type="file"]').setInputFiles({
+    name: 'invalid-task-defaults.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from(invalidCsv, 'utf8'),
+  });
+  await page.getByRole('tab', { name: /Criar Tarefas/i }).click();
+  await page.getByLabel('Projeto (project_id)').fill('0');
+  await page.getByLabel('Início (start_date)').fill('2026-04-20');
+  await page.getByLabel('Prazo (due_date)').fill('2026-04-15');
+
+  await expect(page.getByText(/project_id deve ser um número inteiro positivo/i)).toBeVisible();
+  await expect(page.getByText(/data de início não pode ser posterior ao prazo/i)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Copiar mensagem', exact: true })).toBeDisabled();
+
+  const collisionCsv = buildCsv([
+    'Usuario Teste\t2002\tTarefa Ágil\t"tag"\t2026-04-14\t4.000',
+    'Usuario Teste\t2003\ttarefa agil\t"tag"\t2026-04-14\t4.000',
+  ]);
+  await page.locator('input[type="file"]').setInputFiles({
+    name: 'normalized-title-collision.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from(collisionCsv, 'utf8'),
+  });
+  await page.getByRole('tab', { name: /Criar Tarefas/i }).click();
+
+  await expect(page.getByText(/Há títulos equivalentes após normalização/i)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Copiar mensagem', exact: true })).toBeDisabled();
+});
+
+test('Cesis response mapping blocks ambiguous, reused and manually divergent issue ids', async ({ page }) => {
+  const csv = buildCsv([
+    'Usuario Teste\t3001\tTarefa A\t"tag"\t2026-04-14\t4.000',
+    'Usuario Teste\t3002\tTarefa B\t"tag"\t2026-04-14\t4.000',
+  ]);
+  await page.locator('input[type="file"]').setInputFiles({
+    name: 'mapping-conflicts.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from(csv, 'utf8'),
+  });
+  await page.getByRole('tab', { name: /Registrar Tempo/i }).click();
+
+  await page.getByTestId('cecis-response').fill([
+    'ID 301000 — Tarefa A — tracker: Desenvolvimento (4)',
+    'ID 301000 — Tarefa B — tracker: Desenvolvimento (4)',
+    'ID 301999 — Tarefa desconhecida — tracker: Desenvolvimento (4)',
+  ].join('\n'));
+  await page.getByRole('button', { name: 'Mapear IDs', exact: true }).click();
+  await expect(page.getByText(/Conflitos na resposta da Cesis: Tarefa A; Tarefa B/i)).toBeVisible();
+  await expect(page.getByText(/Títulos não reconhecidos.*Tarefa desconhecida/i)).toBeVisible();
+
+  await page.getByTestId('cecis-response').fill([
+    'ID 302000 — Tarefa A — tracker: Desenvolvimento (4)',
+    'ID 302001 — Tarefa A — tracker: Desenvolvimento (4)',
+    'ID 302002 — Tarefa B — tracker: Desenvolvimento (4)',
+  ].join('\n'));
+  await page.getByRole('button', { name: 'Mapear IDs', exact: true }).click();
+  await expect(page.getByText(/Conflitos na resposta da Cesis: Tarefa A/i)).toBeVisible();
+
+  await page.getByRole('tab', { name: /Criar Tarefas/i }).click();
+  await page.getByLabel(/Issue pós-Cesis.*issue_id/i).first().fill('303000');
+  await page.getByRole('tab', { name: /Registrar Tempo/i }).click();
+  await page.getByTestId('cecis-response').fill([
+    'ID 303001 — Tarefa A — tracker: Desenvolvimento (4)',
+    'ID 303002 — Tarefa B — tracker: Desenvolvimento (4)',
+  ].join('\n'));
+  await page.getByRole('button', { name: 'Mapear IDs', exact: true }).click();
+
+  await expect(page.getByText(/Conflitos na resposta da Cesis: Tarefa A/i)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Copiar mensagem', exact: true })).toBeDisabled();
 });
 
 test('all days remain navigable when CSV has more than five days', async ({ page }) => {
@@ -595,10 +712,10 @@ test('report layout keeps issue actions contained and calendar days roomy', asyn
   expect(dayBox!.width).toBeGreaterThan(dayBox!.height);
 
   await page.getByRole('tab', { name: /Criar Tarefas/i }).click();
-  await expect(page.getByTestId('tasks-json')).toBeVisible();
+  await expect(page.getByTestId('tasks-message')).toBeVisible();
 
   await page.getByRole('tab', { name: /Registrar Tempo/i }).click();
-  await expect(page.getByTestId('time-entries-json')).toBeVisible();
+  await expect(page.getByTestId('time-entries-message')).toBeVisible();
 
   await page.getByRole('tab', { name: /Conferência/i }).click();
   await expect(page.getByText('Conferência diária')).toBeVisible();

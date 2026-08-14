@@ -13,7 +13,7 @@ import { LGPD_NOTICE } from "../lgpd";
 const treatmentItems = [
   {
     title: "Finalidade",
-    body: "Conferir lançamentos de horas, identificar pendências e gerar relatórios ou JSONs para uso manual.",
+    body: "Conferir lançamentos de horas, identificar pendências e gerar relatórios ou mensagens para uso manual.",
   },
   {
     title: "Tratamento local",
@@ -21,7 +21,7 @@ const treatmentItems = [
   },
   {
     title: "Compartilhamento",
-    body: "O fluxo é exclusivamente manual. O compartilhamento só acontece quando você copia um JSON ou baixa um relatório e decide utilizá-lo.",
+    body: "O fluxo é exclusivamente manual. O compartilhamento só acontece quando você copia uma mensagem ou baixa um relatório e decide utilizá-lo.",
   },
   {
     title: "Retenção",

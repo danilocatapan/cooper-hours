@@ -1,12 +1,12 @@
 # Declaração de acessibilidade
 
-O Cooper Hours busca atender WCAG 2.2 AA na experiência principal de importação, conferência e geração de JSON/CSV.
+O Cooper Hours busca atender WCAG 2.2 AA na experiência principal de importação, conferência e geração de mensagens/CSV.
 
 ## Escopo
 
 - Upload local de CSV.
 - Conferência de dias úteis, feriados, horas pendentes e horas acima da meta.
-- Geração de JSON para Cecis.
+- Geração de mensagens operacionais para a Cesis.
 - Download de relatório e inconsistências.
 - Temas claro, escuro e alto contraste.
 
