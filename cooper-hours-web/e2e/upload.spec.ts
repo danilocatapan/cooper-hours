@@ -28,11 +28,15 @@ function parsePayloadFromMessage(message: string | null): unknown {
 }
 
 test('initial screen is usable and free of legacy debug hooks', async ({ page }) => {
-  await expect(page.getByRole('heading', { name: /validação diária de 8h/i })).toBeVisible();
-  await expect(page.getByText('Validar lançamento diário de 8h')).toBeVisible();
-  await expect(page.getByText(/O CSV permanece neste navegador/i)).toBeVisible();
-  await expect(page.getByText('Como a validação funciona')).toBeVisible();
-  await expect(page.getByText(/Envie o CSV para começar/i)).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Conferir e preparar lançamento de horas/i })).toBeVisible();
+  await expect(page.getByText('Importar CSV do BusinessMap')).toBeVisible();
+  await expect(page.getByText(/Nenhum lançamento é enviado automaticamente/i)).toBeVisible();
+  await expect(page.getByText('Como a conferência funciona')).toBeVisible();
+  await expect(page.getByText(/Importe o CSV para começar/i)).toBeVisible();
+  await expect(page.getByText('Onde obtenho este CSV?')).toBeVisible();
+  await expect(page.getByText('Processamento local confirmado.')).toBeVisible();
+  await page.getByText('Onde obtenho este CSV?').click();
+  await expect(page.getByText(/Exporte no BusinessMap um CSV do período desejado/i)).toBeVisible();
   await expect(page.getByRole('button', { name: /Formato do arquivo/i })).toBeVisible();
 
   const logoResponse = await page.request.get(new URL('assets/coopersystem-logo.svg', base).toString());
@@ -50,12 +54,12 @@ test('initial screen is usable and free of legacy debug hooks', async ({ page })
 test('rendered Portuguese text is free of mojibake artifacts', async ({ page }) => {
   const visibleText = await page.locator('body').innerText();
   expect(visibleText).not.toMatch(/[ÃÂ�]|â€”|â†’|Ã§|Ã£|Ã¡|Ã©|Ã­|Ã³|Ãº/);
-  await expect(page.getByRole('heading', { name: /Validação diária de 8h/i })).toBeVisible();
-  await expect(page.getByText(/Envie o CSV para começar/i)).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Conferir e preparar lançamento de horas/i })).toBeVisible();
+  await expect(page.getByText(/Importe o CSV para começar/i)).toBeVisible();
 
   await page.locator('input[type="file"]').setInputFiles(path.join(testDir, 'fixtures', 'sample.csv'));
   await expect(page.getByText('Conferência do período')).toBeVisible();
-  await expect(page.getByRole('tab', { name: /Automatizar/i })).toHaveCount(0);
+  await expect(page.getByRole('tab')).toHaveCount(0);
   const reportText = await page.locator('body').innerText();
   expect(reportText).not.toMatch(/[ÃÂ�]|â€”|â†’|Ã§|Ã£|Ã¡|Ã©|Ã­|Ã³|Ãº/);
 });
@@ -82,9 +86,10 @@ test('upload control is keyboard accessible and exposes workflow progress', asyn
   await chooser.setFiles(filePath);
 
   await expect(page.getByText('Arquivo analisado com sucesso')).toBeVisible({ timeout: 5000 });
-  await expect(page.getByRole('navigation', { name: /Etapas do fluxo CSV para Cesis/i })).toBeVisible();
-  await expect(page.getByTestId('workflow-step-conference')).toContainText('Conferir');
-  await expect(page.getByTestId('workflow-step-copy')).toContainText('Copiar mensagem');
+  await expect(page.getByRole('navigation', { name: /Etapas para preparar o lançamento na Cesis/i })).toBeVisible();
+  await expect(page.getByTestId('workflow-step-conference')).toContainText('Conferir horas');
+  await expect(page.getByTestId('workflow-step-copy')).toContainText('Copiar lançamento final');
+  await expect(page.getByRole('button', { name: /Continuar para conferência/i })).toBeVisible();
 });
 
 test('privacy notice is demonstrative, local, and free of institutional placeholders', async ({ page }) => {
@@ -102,13 +107,17 @@ test('workflow steps navigate, focus their targets, and reflect completed curren
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
   await page.locator('input[type="file"]').setInputFiles(path.join(testDir, 'fixtures', 'sample.csv'));
 
+  await page.getByRole('button', { name: /Continuar para conferência/i }).click();
+  await expect(page.locator('#conference-panel')).toBeFocused();
+
   const tasksStep = page.getByTestId('workflow-step-tasks');
   await expect(tasksStep).toContainText('Disponível');
   await tasksStep.click();
-  await expect(page.getByRole('tab', { name: /Criar Tarefas/i })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#tasks-panel')).toBeFocused();
+  await expect(page.getByRole('heading', { name: /Preparar tarefas/i })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Copiar mensagem', exact: true }).click();
-  await page.getByRole('alertdialog').getByRole('button', { name: 'Copiar mensagem', exact: true }).click();
+  await page.getByRole('button', { name: 'Copiar tarefas', exact: true }).click();
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toContain('Crie ou reutilize para mim, no Redmine');
   await expect(tasksStep).toContainText('Concluída');
 
@@ -129,10 +138,11 @@ test('workflow steps navigate, focus their targets, and reflect completed curren
   await expect(copyStep).toContainText('Disponível');
   await copyStep.click();
   await expect(page.locator('#time-entries-output')).toBeFocused();
-  await page.getByRole('button', { name: 'Copiar mensagem', exact: true }).click();
-  await page.getByRole('alertdialog').getByRole('button', { name: 'Copiar mensagem', exact: true }).click();
+  await page.locator('#time-entries-output').getByRole('button', { name: 'Copiar lançamento final', exact: true }).click();
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toContain('Agora registre no Redmine as horas');
   await expect(copyStep).toContainText('Concluída');
+  await expect(page.getByText(/Preparação concluída/i)).toBeVisible();
 });
 
 test('destructive and sensitive downloads require confirmation', async ({ page }) => {
@@ -165,7 +175,7 @@ test('destructive and sensitive downloads require confirmation', async ({ page }
   await page.getByRole('button', { name: /Limpar dados importados/i }).click();
   await page.getByRole('button', { name: 'Limpar dados', exact: true }).click();
   await expect(page.getByText('Conferência do período')).toBeHidden();
-  await expect(page.getByText(/Envie o CSV para começar/i)).toBeVisible();
+  await expect(page.getByText(/Importe o CSV para começar/i)).toBeVisible();
 });
 
 test('conference day cards stay compact and consistent on desktop', async ({ page }) => {
@@ -279,7 +289,7 @@ test('semantic status tokens meet readable contrast targets', async ({ page }) =
 test('light theme primary action keeps AA contrast at rest, hover, and focus', async ({ page }) => {
   await page.getByRole('button', { name: /Usar tema Claro/i }).click();
   await page.locator('input[type="file"]').setInputFiles(path.join(testDir, 'fixtures', 'sample.csv'));
-  await page.getByRole('tab', { name: /Registrar Tempo/i }).click();
+  await page.getByTestId('workflow-step-map').click();
   const action = page.getByRole('button', { name: 'Mapear IDs', exact: true });
 
   const contrast = async () => action.evaluate((element) => {
@@ -321,7 +331,7 @@ test('upload CSV and show full report flow', async ({ page }) => {
   await expect(page.getByRole('button', { name: /01\/04\/2026/i })).toBeVisible();
 });
 
-test('create tasks tab generates the complete Cesis message with the exact batch JSON contract', async ({ page }) => {
+test('prepare tasks step generates the complete Cesis message with the exact batch JSON contract', async ({ page }) => {
   const csv = buildCsv([
     'Usuario Teste\t893566\tTarefa API\t"tag"\t2026-04-01\t5.000',
     'Usuario Teste\t987589\tTarefa UI\t"tag"\t2026-04-15\t3.000',
@@ -333,8 +343,7 @@ test('create tasks tab generates the complete Cesis message with the exact batch
     buffer: Buffer.from(csv, 'utf8'),
   });
 
-  await expect(page.getByRole('tab', { name: /Criar Tarefas/i })).toBeVisible();
-  await page.getByRole('tab', { name: /Criar Tarefas/i }).click();
+  await page.getByTestId('workflow-step-tasks').click();
 
   const messageText = await page.getByTestId('tasks-message').textContent();
   expect(messageText).toContain('Crie ou reutilize para mim, no Redmine');
@@ -369,7 +378,7 @@ test('create tasks tab generates the complete Cesis message with the exact batch
   expect(json.tasks.map((task: { subject: string }) => task.subject).sort()).toEqual(['Tarefa API', 'Tarefa UI']);
 });
 
-test('time entries tab maps Cesis issue ids and generates the complete grouped-hours message', async ({ page }) => {
+test('mapping step applies Cesis issue ids and generates the complete grouped-hours message', async ({ page }) => {
   const csv = buildCsv([
     'Usuario Teste\t893566\tMaestro-Refinamentos S2-Abr\t"tag"\t2026-04-14\t2.000',
     'Usuario Teste\t987589\tMaestro-Ritos (Daily, Planning, Review e Retro) S2-Abr\t"tag"\t2026-04-15\t6.000',
@@ -381,12 +390,11 @@ test('time entries tab maps Cesis issue ids and generates the complete grouped-h
     buffer: Buffer.from(csv, 'utf8'),
   });
 
-  await expect(page.getByRole('tab', { name: /Registrar Tempo/i })).toBeVisible();
-  await page.getByRole('tab', { name: /Registrar Tempo/i }).click();
+  await page.getByTestId('workflow-step-map').click();
 
   await expect(page.getByText('tarefa(s) pendente(s)')).toBeVisible();
   await expect(page.getByText(/Mapeie issue_id e activity_id de todas as tarefas/i)).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Copiar mensagem', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Copiar lançamento final', exact: true })).toBeDisabled();
 
   await page.getByTestId('cecis-response').fill([
     'Tarefas criadas com sucesso — 2 issues:',
@@ -442,7 +450,7 @@ test('time entries message blocks copying while any Cesis mapping is pending', a
     buffer: Buffer.from(csv, 'utf8'),
   });
 
-  await page.getByRole('tab', { name: /Registrar Tempo/i }).click();
+  await page.getByTestId('workflow-step-map').click();
   await page.getByTestId('cecis-response').fill('ID 291700 — Tarefa Mapeada — tracker: Manutenção (5)');
   await page.getByRole('button', { name: 'Mapear IDs', exact: true }).click();
 
@@ -458,7 +466,7 @@ test('time entries message blocks copying while any Cesis mapping is pending', a
     activity_id: 9,
     comments: '',
   }]);
-  await expect(page.getByRole('button', { name: 'Copiar mensagem', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Copiar lançamento final', exact: true })).toBeDisabled();
 });
 
 test('time entries with the same issue, date and activity are grouped before copying', async ({ page }) => {
@@ -472,7 +480,7 @@ test('time entries with the same issue, date and activity are grouped before cop
     mimeType: 'text/csv',
     buffer: Buffer.from(csv, 'utf8'),
   });
-  await page.getByRole('tab', { name: /Registrar Tempo/i }).click();
+  await page.getByTestId('workflow-step-map').click();
   await page.getByTestId('cecis-response').fill('ID 291800 — Tarefa Agrupada — tracker: Desenvolvimento (4) — resultado: REUTILIZADA');
   await page.getByRole('button', { name: 'Mapear IDs', exact: true }).click();
 
@@ -485,7 +493,7 @@ test('time entries with the same issue, date and activity are grouped before cop
     activity_id: 9,
     comments: '',
   }]);
-  await expect(page.getByRole('button', { name: 'Copiar mensagem', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Copiar lançamento final', exact: true })).toBeEnabled();
 });
 
 test('task message blocks invalid identifiers, date ranges and normalized title collisions', async ({ page }) => {
@@ -497,14 +505,14 @@ test('task message blocks invalid identifiers, date ranges and normalized title 
     mimeType: 'text/csv',
     buffer: Buffer.from(invalidCsv, 'utf8'),
   });
-  await page.getByRole('tab', { name: /Criar Tarefas/i }).click();
+  await page.getByTestId('workflow-step-tasks').click();
   await page.getByLabel('Projeto (project_id)').fill('0');
   await page.getByLabel('Início (start_date)').fill('2026-04-20');
   await page.getByLabel('Prazo (due_date)').fill('2026-04-15');
 
   await expect(page.getByText(/project_id deve ser um número inteiro positivo/i)).toBeVisible();
   await expect(page.getByText(/data de início não pode ser posterior ao prazo/i)).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Copiar mensagem', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Copiar tarefas', exact: true })).toBeDisabled();
 
   const collisionCsv = buildCsv([
     'Usuario Teste\t2002\tTarefa Ágil\t"tag"\t2026-04-14\t4.000',
@@ -515,10 +523,10 @@ test('task message blocks invalid identifiers, date ranges and normalized title 
     mimeType: 'text/csv',
     buffer: Buffer.from(collisionCsv, 'utf8'),
   });
-  await page.getByRole('tab', { name: /Criar Tarefas/i }).click();
+  await page.getByTestId('workflow-step-tasks').click();
 
   await expect(page.getByText(/Há títulos equivalentes após normalização/i)).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Copiar mensagem', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Copiar tarefas', exact: true })).toBeDisabled();
 });
 
 test('Cesis response mapping blocks ambiguous, reused and manually divergent issue ids', async ({ page }) => {
@@ -531,7 +539,7 @@ test('Cesis response mapping blocks ambiguous, reused and manually divergent iss
     mimeType: 'text/csv',
     buffer: Buffer.from(csv, 'utf8'),
   });
-  await page.getByRole('tab', { name: /Registrar Tempo/i }).click();
+  await page.getByTestId('workflow-step-map').click();
 
   await page.getByTestId('cecis-response').fill([
     'ID 301000 — Tarefa A — tracker: Desenvolvimento (4)',
@@ -550,9 +558,9 @@ test('Cesis response mapping blocks ambiguous, reused and manually divergent iss
   await page.getByRole('button', { name: 'Mapear IDs', exact: true }).click();
   await expect(page.getByText(/Conflitos na resposta da Cesis: Tarefa A/i)).toBeVisible();
 
-  await page.getByRole('tab', { name: /Criar Tarefas/i }).click();
-  await page.getByLabel(/Issue pós-Cesis.*issue_id/i).first().fill('303000');
-  await page.getByRole('tab', { name: /Registrar Tempo/i }).click();
+  await page.getByTestId('workflow-step-tasks').click();
+  await page.getByLabel(/ID da tarefa na Cesis.*issue_id/i).first().fill('303000');
+  await page.getByTestId('workflow-step-map').click();
   await page.getByTestId('cecis-response').fill([
     'ID 303001 — Tarefa A — tracker: Desenvolvimento (4)',
     'ID 303002 — Tarefa B — tracker: Desenvolvimento (4)',
@@ -560,7 +568,7 @@ test('Cesis response mapping blocks ambiguous, reused and manually divergent iss
   await page.getByRole('button', { name: 'Mapear IDs', exact: true }).click();
 
   await expect(page.getByText(/Conflitos na resposta da Cesis: Tarefa A/i)).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Copiar mensagem', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Copiar lançamento final', exact: true })).toBeDisabled();
 });
 
 test('all days remain navigable when CSV has more than five days', async ({ page }) => {
@@ -648,13 +656,13 @@ test('layout reflows at a viewport equivalent to 200 percent zoom', async ({ pag
   await page.setViewportSize({ width: 640, height: 720 });
   await page.locator('input[type="file"]').setInputFiles(path.join(testDir, 'fixtures', 'sample.csv'));
 
-  for (const tabName of ['Conferência', 'Criar Tarefas', 'Registrar Tempo']) {
-    await page.getByRole('tab', { name: tabName }).click();
+  for (const step of ['conference', 'tasks', 'map'] as const) {
+    await page.getByTestId(`workflow-step-${step}`).click();
     const hasHorizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
-    expect(hasHorizontalOverflow, `${tabName} should reflow without global horizontal scrolling`).toBe(false);
+    expect(hasHorizontalOverflow, `${step} should reflow without global horizontal scrolling`).toBe(false);
   }
 
-  await page.getByRole('tab', { name: /Registrar Tempo/i }).click();
+  await page.getByTestId('workflow-step-map').click();
   const helpFontSize = await page.locator('#cecis-response-help').evaluate((element) => parseFloat(getComputedStyle(element).fontSize));
   expect(helpFontSize).toBeGreaterThanOrEqual(14);
 });
@@ -711,13 +719,13 @@ test('report layout keeps issue actions contained and calendar days roomy', asyn
   expect(dayBox!.height).toBeLessThanOrEqual(100);
   expect(dayBox!.width).toBeGreaterThan(dayBox!.height);
 
-  await page.getByRole('tab', { name: /Criar Tarefas/i }).click();
+  await page.getByTestId('workflow-step-tasks').click();
   await expect(page.getByTestId('tasks-message')).toBeVisible();
 
-  await page.getByRole('tab', { name: /Registrar Tempo/i }).click();
+  await page.getByTestId('workflow-step-map').click();
   await expect(page.getByTestId('time-entries-message')).toBeVisible();
 
-  await page.getByRole('tab', { name: /Conferência/i }).click();
+  await page.getByTestId('workflow-step-conference').click();
   await expect(page.getByText('Conferência diária')).toBeVisible();
 
   const hasHorizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
@@ -946,5 +954,5 @@ test('404 route is accessible and returns home', async ({ page }) => {
   await expect(page.getByText('Página não encontrada')).toBeVisible();
 
   await page.getByRole('button', { name: /Voltar para o início/i }).click();
-  await expect(page.getByText('Validar lançamento diário de 8h')).toBeVisible();
+  await expect(page.getByText('Importar CSV do BusinessMap')).toBeVisible();
 });

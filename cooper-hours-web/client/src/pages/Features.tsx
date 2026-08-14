@@ -11,7 +11,7 @@ export default function Features() {
         <SectionCard title="Sobre / Features" description={`Versão ${appVersionNumber}`}>
           <div className="space-y-4 text-sm leading-6 text-foreground">
             <p>
-              Esta ferramenta foi construída para validar localmente arquivos CSV do BusinessMap, conferindo dias úteis, horas lançadas e formatos de importação antes do envio para sistemas autorizados.
+              Esta ferramenta confere localmente arquivos CSV do BusinessMap e prepara mensagens para o fluxo manual da Cesis. Ela não cria tarefas nem registra horas automaticamente.
             </p>
             <div className="space-y-3">
               <p className="text-sm font-semibold text-foreground">Changelog 1.0.0</p>
@@ -21,7 +21,7 @@ export default function Features() {
                   "Grade mensal com 7 colunas, seleção por teclado, estados visuais e foco acessível.",
                   "Upload por dropzone com botão interno contido, suporte a teclado e nomes longos.",
                   "Modal de formato CSV ampliado em desktop, responsivo e sem overflow horizontal.",
-                  "Geração de mensagens operacionais para criação de tarefas e lançamentos autorizados na Cesis.",
+                  "Preparação de mensagens operacionais para tarefas e lançamentos autorizados na Cesis.",
                   "Testes Playwright para proporção de cards, upload, modal, rota Sobre e versão.",
                 ].map((feature) => (
                   <div key={feature} className="rounded-lg border border-border bg-surface-subtle p-3 text-muted-foreground">

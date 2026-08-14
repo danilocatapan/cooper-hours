@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type ChangeEvent, type DragEvent } from "react";
-import { AlertCircle, Download, Info, ShieldCheck, Trash2, Upload } from "lucide-react";
+import { AlertCircle, CheckCircle2, Download, Info, ShieldCheck, Trash2, Upload } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -53,6 +53,7 @@ interface UploadPanelProps {
   onPrivacyAcknowledgedChange: (acknowledged: boolean) => void;
   onClearImportedData: () => void;
   onDownloadCsvIssues: () => void;
+  onContinueToConference: () => void;
 }
 
 export function UploadPanel({
@@ -69,39 +70,52 @@ export function UploadPanel({
   onPrivacyAcknowledgedChange,
   onClearImportedData,
   onDownloadCsvIssues,
+  onContinueToConference,
 }: UploadPanelProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   return (
     <SectionCard
       className="xl:sticky xl:top-8"
-      title="Validar lançamento diário de 8h"
-      description="Envie o CSV do BusinessMap para conferir dias completos, pendentes e acima da meta."
+      title="Importar CSV do BusinessMap"
+      description="Confira dias completos, pendentes e acima da meta antes de preparar o lançamento."
     >
       <div className="space-y-4">
-        <div className="rounded-lg border border-selection/30 bg-selection/10 p-4">
+        <div className={cn(
+          "rounded-lg border",
+          privacyAcknowledged ? "border-success/30 bg-success/10 p-3" : "border-selection/30 bg-selection/10 p-4"
+        )}>
           <div className="flex items-start gap-3">
             <Checkbox
               id="privacy-acknowledgement"
               checked={privacyAcknowledged}
               onCheckedChange={(checked) => onPrivacyAcknowledgedChange(checked === true)}
               aria-label="Entendi o processamento local e confirmo que posso usar este arquivo"
-              aria-describedby="privacy-acknowledgement-help"
+              aria-describedby={privacyAcknowledged ? undefined : "privacy-acknowledgement-help"}
               className="mt-0.5"
             />
             <div className="min-w-0 flex-1">
               <label htmlFor="privacy-acknowledgement" className="cursor-pointer text-sm font-medium leading-5 text-foreground">
-                Entendi o processamento local e confirmo que posso usar este arquivo.
+                {privacyAcknowledged ? "Processamento local confirmado." : "Entendi o processamento local e confirmo que posso usar este arquivo."}
               </label>
-              <p id="privacy-acknowledgement-help" className="mt-1 text-sm leading-6 text-muted-foreground">
-                O CSV permanece neste navegador. Use somente dados que você esteja autorizado a consultar.
-              </p>
-              <div className="mt-2">
+              {!privacyAcknowledged && (
+                <p id="privacy-acknowledgement-help" className="mt-1 text-sm leading-6 text-muted-foreground">
+                  O CSV permanece neste navegador. Use somente dados que você esteja autorizado a consultar.
+                </p>
+              )}
+              <div className={privacyAcknowledged ? "mt-1" : "mt-2"}>
                 <PrivacyNoticeDialog />
               </div>
             </div>
           </div>
         </div>
+
+        <details className="rounded-lg border border-border bg-background/40 p-3 text-sm">
+          <summary className="cursor-pointer font-semibold text-foreground">Onde obtenho este CSV?</summary>
+          <p className="mt-2 leading-6 text-muted-foreground">
+            Exporte no BusinessMap um CSV do período desejado e confirme que o arquivo contém as colunas Título, Data e Tempo registrado soma. Consulte “Formato do arquivo” para ver os campos e um exemplo sanitizado.
+          </p>
+        </details>
 
         <div
           data-testid="file-dropzone"
@@ -181,6 +195,10 @@ export function UploadPanel({
                 {completeDays} de {report.businessDayCount} dias úteis com 8h completas
               </p>
             </div>
+            <Button type="button" size="sm" className="w-full justify-center" onClick={onContinueToConference}>
+              <CheckCircle2 className="h-4 w-4" />
+              Continuar para conferência
+            </Button>
             <Button type="button" variant="outline" size="sm" className="w-full justify-center border-success/40 bg-background/50" onClick={onClearImportedData}>
               <Trash2 className="h-4 w-4" />
               Limpar dados importados
@@ -188,20 +206,26 @@ export function UploadPanel({
           </div>
         )}
 
-        <Alert className="border-selection/30 bg-selection/10 text-foreground">
-          <ShieldCheck className="h-4 w-4 text-selection" />
-          <AlertDescription>
-            A aplicação não mantém histórico de uploads. Evite usar arquivos pessoais em dispositivos compartilhados.
-          </AlertDescription>
-        </Alert>
+        {!privacyAcknowledged && (
+          <Alert className="border-selection/30 bg-selection/10 text-foreground">
+            <ShieldCheck className="h-4 w-4 text-selection" />
+            <AlertDescription>
+              A aplicação não mantém histórico de uploads. Evite usar arquivos pessoais em dispositivos compartilhados.
+            </AlertDescription>
+          </Alert>
+        )}
 
         <details className="rounded-lg border border-border bg-background/40 p-3 text-sm">
           <summary className="cursor-pointer font-semibold text-foreground">Como completar o fluxo</summary>
+          <p className="mt-3 leading-6 text-muted-foreground">
+            Neste processo, a Cesis é o fluxo manual autorizado que recebe as mensagens preparadas pela ferramenta.
+          </p>
           <ol className="mt-3 list-decimal space-y-2 pl-5 leading-6 text-muted-foreground">
             <li>Exporte no BusinessMap um CSV com Título, Data e Tempo registrado soma.</li>
-            <li>Confira os dias e revise os dados usados para criar as tarefas.</li>
-            <li>Copie a mensagem completa de tarefas para o fluxo manual da Cesis.</li>
-            <li>Cole a resposta com os IDs criados ou reutilizados e copie a mensagem final de horas.</li>
+            <li>Importe o arquivo e confira os dias e as horas.</li>
+            <li>Prepare e copie a mensagem de tarefas para a Cesis.</li>
+            <li>Cole a resposta da Cesis e mapeie os IDs das tarefas.</li>
+            <li>Copie o lançamento final e cole-o no fluxo autorizado da Cesis.</li>
           </ol>
         </details>
 

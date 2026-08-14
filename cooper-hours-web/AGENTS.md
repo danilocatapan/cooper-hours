@@ -58,6 +58,14 @@ O `playwright.config.ts` não sobe o servidor sozinho. Se a porta 3000 estiver o
 - Para esta aplicação, valide pelo menos: upload por clique, drag-and-drop, CSV inválido, CSV com mais de 5 dias, dia abaixo de 8h, dia com 8h, dia acima de 8h e layout mobile.
 - Registre qualquer aviso preexistente separadamente de regressão nova.
 
+## Finalização e publicação
+
+- Ao concluir uma tarefa de desenvolvimento, não encerre com alterações somente locais, salvo se o usuário pedir explicitamente para não publicar.
+- Crie uma branch dedicada, faça commit apenas do escopo da tarefa, envie a branch e abra um pull request pronto para revisão.
+- Aguarde as verificações obrigatórias do pull request. Com os checks aprovados, faça o merge na `main`.
+- Aguarde o workflow de GitHub Pages, confirme que o deploy terminou com sucesso e valide que a aplicação publicada responde na URL oficial.
+- Se autenticação, permissões, checks ou deploy impedirem a publicação, informe o bloqueio com precisão em vez de declarar a tarefa concluída.
+
 ## Skills
 
 - Use `define-goal` quando o pedido precisar transformar uma intenção ampla em objetivo verificável.
