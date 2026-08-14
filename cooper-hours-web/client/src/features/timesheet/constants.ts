@@ -6,7 +6,7 @@ export const HOUR_TOLERANCE = 0.01;
 export const DEFAULT_TASKS: TaskDefaults = {
   projectId: "333",
   assignedToId: "388",
-  trackerId: "5",
+  trackerId: "4",
   startDate: "2026-04-01",
   dueDate: "2026-04-15",
   statusId: "3",
@@ -15,7 +15,7 @@ export const DEFAULT_TASKS: TaskDefaults = {
 };
 
 export const trackerOptions = [
-  { value: "5", label: "Desenvolvimento" },
+  { value: "4", label: "Desenvolvimento" },
   { value: "21", label: "Reuniões" },
   { value: "12", label: "Análise e Refinamento" },
 ];

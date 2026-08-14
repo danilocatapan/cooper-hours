@@ -35,6 +35,12 @@ Este arquivo orienta agentes que trabalham neste repositório. Use estas instru�
 node test_comprehensive.mjs
 ```
 
+## Entrega Git
+
+- Ao concluir uma solicitação que altere o repositório, execute as validações aplicáveis, crie um commit apenas com os arquivos do escopo e faça push da branch atual sem pedir confirmação.
+- Não faça commit nem push quando o usuário pedir somente análise, diagnóstico, revisão ou plano, ou quando proibir a publicação.
+- Se o push falhar por autenticação, divergência ou proteção de branch, preserve o commit local e informe o bloqueio.
+
 Para testes Playwright contra servidor local, suba o Vite antes e use:
 
 ```powershell

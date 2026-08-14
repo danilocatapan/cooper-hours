@@ -28,7 +28,7 @@ export function getDefaultTaskConfig(title: string): TaskConfig {
     return { trackerId: "12", activityId: "20", issueId: "" };
   }
 
-  return { trackerId: "5", activityId: "9", issueId: "" };
+  return { trackerId: "4", activityId: "9", issueId: "" };
 }
 
 export function getDailyStatus(totalHours: number): DailyStatus {
