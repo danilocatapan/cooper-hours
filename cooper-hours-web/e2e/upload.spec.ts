@@ -348,7 +348,7 @@ test('create tasks tab generates the exact batch JSON contract', async ({ page }
   expect(json.tasks[0]).toMatchObject({
     project_id: 333,
     assigned_to_id: 388,
-    tracker_id: 5,
+    tracker_id: 4,
     start_date: '2026-04-01',
     due_date: '2026-04-15',
     status_id: 3,
