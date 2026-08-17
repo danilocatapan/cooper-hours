@@ -59,6 +59,8 @@ test("report, Cesis steps and direct copy have no automated accessibility violat
   await expect(page.getByTestId("tasks-message")).toBeVisible();
   await checkA11y(page);
 
+  await page.getByLabel("Sprint/Versão (fixed_version_name)").fill("SPRINT 113");
+  await page.getByRole("checkbox", { name: /Revisei projeto, responsável, status e sprint\/versão/i }).click();
   await page.getByRole("button", { name: "Copiar tarefas", exact: true }).click();
   await expect(page.getByRole("alertdialog")).toHaveCount(0);
   await checkA11y(page);

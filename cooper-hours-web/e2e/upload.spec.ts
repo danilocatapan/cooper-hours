@@ -116,6 +116,8 @@ test('workflow steps navigate, focus their targets, and reflect completed curren
   await expect(page.locator('#tasks-panel')).toBeFocused();
   await expect(page.getByRole('heading', { name: /Preparar tarefas/i })).toBeVisible();
 
+  await page.getByLabel('Sprint/Versão (fixed_version_name)').fill('SPRINT 113');
+  await page.getByRole('checkbox', { name: /Revisei projeto, responsável, status e sprint\/versão/i }).click();
   await page.getByRole('button', { name: 'Copiar tarefas', exact: true }).click();
   await expect(page.getByRole('alertdialog')).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toContain('Crie ou reutilize para mim, no Redmine');
@@ -143,6 +145,39 @@ test('workflow steps navigate, focus their targets, and reflect completed curren
   await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toContain('Agora registre no Redmine as horas');
   await expect(copyStep).toContainText('Concluída');
   await expect(page.getByText(/Preparação concluída/i)).toBeVisible();
+});
+
+test('Redmine context explains defaults and requires a fresh confirmation after critical changes', async ({ page }) => {
+  await page.locator('input[type="file"]').setInputFiles(path.join(testDir, 'fixtures', 'sample.csv'));
+  await page.getByTestId('workflow-step-tasks').click();
+
+  await expect(page.getByRole('heading', { name: 'Contexto de lançamento no Redmine' })).toBeVisible();
+  await expect(page.getByText('Maestro Cloud BB Corretora', { exact: true })).toBeVisible();
+  await expect(page.getByText('Danilo Rodrigues Catapan', { exact: true })).toBeVisible();
+  await expect(page.getByText('Em execução', { exact: true })).toBeVisible();
+  await expect(page.getByText('Normalmente atualizada a cada 15 dias', { exact: true })).toBeVisible();
+
+  const sprintInput = page.getByLabel('Sprint/Versão (fixed_version_name)');
+  const confirmation = page.getByRole('checkbox', { name: /Revisei projeto, responsável, status e sprint\/versão/i });
+  const copyButton = page.getByRole('button', { name: 'Copiar tarefas', exact: true });
+
+  await expect(sprintInput).toHaveValue('');
+  await expect(sprintInput).toHaveAttribute('placeholder', 'Ex.: SPRINT 113');
+  await expect(page.getByText('Preenchimento obrigatório', { exact: true })).toBeVisible();
+  await expect(copyButton).toBeDisabled();
+
+  await sprintInput.fill('SPRINT 113');
+  await confirmation.click();
+  await expect(copyButton).toBeEnabled();
+
+  await page.getByLabel('Projeto (project_id)').fill('334');
+  await expect(confirmation).not.toBeChecked();
+  await expect(page.getByText('Valor personalizado', { exact: true })).toBeVisible();
+  await expect(page.getByText(/confirme o projeto no Redmine/i)).toBeVisible();
+  await expect(copyButton).toBeDisabled();
+
+  await confirmation.click();
+  await expect(copyButton).toBeEnabled();
 });
 
 test('destructive and sensitive downloads require confirmation', async ({ page }) => {
@@ -345,6 +380,8 @@ test('prepare tasks step generates the complete Cesis message with the exact bat
 
   await page.getByTestId('workflow-step-tasks').click();
 
+  await page.getByLabel('Sprint/Versão (fixed_version_name)').fill('SPRINT 113');
+
   const messageText = await page.getByTestId('tasks-message').textContent();
   expect(messageText).toContain('Crie ou reutilize para mim, no Redmine');
   expect(messageText).toContain('bloqueie o lote inteiro');
@@ -372,7 +409,7 @@ test('prepare tasks step generates the complete Cesis message with the exact bat
     start_date: '2026-04-01',
     due_date: '2026-04-15',
     status_id: 3,
-    fixed_version_name: 'SPRINT 103',
+    fixed_version_name: 'SPRINT 113',
     description: 'Detalhes...',
   });
   expect(json.tasks.map((task: { subject: string }) => task.subject).sort()).toEqual(['Tarefa API', 'Tarefa UI']);

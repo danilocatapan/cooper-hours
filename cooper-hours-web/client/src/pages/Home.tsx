@@ -47,6 +47,7 @@ export default function Home() {
   const [isDragging, setIsDragging] = useState(false);
   const [activeWorkflowStep, setActiveWorkflowStep] = useState<WorkflowStepId>("conference");
   const [taskDefaults, setTaskDefaults] = useState<TaskDefaults>(DEFAULT_TASKS);
+  const [taskContextConfirmed, setTaskContextConfirmed] = useState(false);
   const [copiedTarget, setCopiedTarget] = useState<CopiedTarget>(null);
   const [taskConfigs, setTaskConfigs] = useState<Record<string, TaskConfig>>({});
   const [cecisResponseText, setCecisResponseText] = useState("");
@@ -118,6 +119,7 @@ export default function Home() {
     setLastCopiedTasksMessage(null);
     setLastCopiedTimeEntriesMessage(null);
     setCecisResponseText("");
+    setTaskContextConfirmed(false);
     setSelectedFileName(file.name);
 
     const reader = new FileReader();
@@ -190,6 +192,9 @@ export default function Home() {
 
   const updateTaskDefault = (key: keyof TaskDefaults, value: string) => {
     setTaskDefaults((current) => ({ ...current, [key]: value }));
+    if (key === "projectId" || key === "assignedToId" || key === "statusId" || key === "fixedVersionName") {
+      setTaskContextConfirmed(false);
+    }
   };
 
   const updateTaskConfig = (title: string, key: keyof TaskConfig, value: string) => {
@@ -222,6 +227,7 @@ export default function Home() {
     setTaskConfigs({});
     setCecisResponseText("");
     setTaskDefaults(DEFAULT_TASKS);
+    setTaskContextConfirmed(false);
     setActiveWorkflowStep("conference");
     setSelectedFileName(null);
     setLastCopiedTasksMessage(null);
@@ -400,7 +406,9 @@ export default function Home() {
                     taskConfigs={taskConfigs}
                     tasksMessageResult={tasksMessageResult}
                     copied={copiedTarget === "tasks"}
+                    taskContextConfirmed={taskContextConfirmed}
                     onTaskDefaultChange={updateTaskDefault}
+                    onTaskContextConfirmedChange={setTaskContextConfirmed}
                     onTaskConfigChange={updateTaskConfig}
                     onCopyTasks={() => void copyMessage(tasksMessageResult.message, "tasks")}
                   />

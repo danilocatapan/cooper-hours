@@ -60,6 +60,7 @@ O `playwright.config.ts` não sobe o servidor sozinho. Se a porta 3000 estiver o
 
 ## Finalização e publicação
 
+- **Regra obrigatória de conclusão:** todo pedido de implementação deve terminar com commit do código, push de uma branch dedicada e pull request aberto para `main`, sem aguardar um novo lembrete do usuário. A tarefa só pode ser declarada concluída depois dos checks aprovados, merge na `main` e validação do deploy; a única exceção é uma proibição explícita de publicar ou um bloqueio externo informado com precisão.
 - Ao concluir uma tarefa de desenvolvimento, não encerre com alterações somente locais, salvo se o usuário pedir explicitamente para não publicar.
 - Crie uma branch dedicada, faça commit apenas do escopo da tarefa, envie a branch e abra um pull request pronto para revisão.
 - Aguarde as verificações obrigatórias do pull request. Com os checks aprovados, faça o merge na `main`.
